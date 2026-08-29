@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  :root {
+    --brand: #2563eb;
+    --brand-hover: #1d4ed8;
+    --brand-dim: rgba(37, 99, 235, 0.08);
+    --brand-dim-strong: rgba(37, 99, 235, 0.14);
+    --brand-edge: rgba(37, 99, 235, 0.28);
+    --brand-text: #1d4ed8;
+
+    --bg: #ffffff;
+    --bg-card: #ffffff;
+    --bg-inset: #f8fafc;
+    --bg-raised: #ffffff;
+    --surface: #f1f5f9;
+    --surface-hover: #e2e8f0;
+    --surface-active: #cbd5e1;
+
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #94a3b8;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+
+    --success: #16a34a;
+    --success-dim: rgba(22, 163, 74, 0.09);
+    --success-edge: rgba(22, 163, 74, 0.28);
+    --success-text: #15803d;
+
+    --danger: #dc2626;
+    --danger-dim: rgba(220, 38, 38, 0.08);
+    --danger-edge: rgba(220, 38, 38, 0.28);
+    --danger-text: #b91c1c;
+
+    --warning: #d97706;
+    --warning-dim: rgba(217, 119, 6, 0.09);
+    --warning-edge: rgba(217, 119, 6, 0.28);
+    --warning-text: #b45309;
+
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 10px;
+
+    --term-bg: #ffffff;
+    --term-head-bg: #f8fafc;
+    --term-toolbar-bg: #f8fafc;
+    --term-border: #e2e8f0;
+    --term-fg: #0f172a;
+    --term-fg-muted: #64748b;
+    --term-fg-faint: #94a3b8;
+    --term-tab-hover: #f1f5f9;
+    --term-tab-active-bg: #ffffff;
+    --term-tab-active-border: #cbd5e1;
+    --term-tab-active-fg: #0f172a;
+
+    --ansi-black: #0f172a;
+    --ansi-red: #dc2626;
+    --ansi-green: #16a34a;
+    --ansi-yellow: #d97706;
+    --ansi-blue: #2563eb;
+    --ansi-magenta: #9333ea;
+    --ansi-cyan: #0891b2;
+    --ansi-white: #0f172a;
+    --ansi-bright-black: #64748b;
+    --ansi-bright-red: #ef4444;
+    --ansi-bright-green: #22c55e;
+    --ansi-bright-yellow: #b45309;
+    --ansi-bright-blue: #3b82f6;
+    --ansi-bright-magenta: #a855f7;
+    --ansi-bright-cyan: #06b6d4;
+    --ansi-bright-white: #0f172a;
+
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+  }
+
+  [data-theme="dark"] {
+    --brand: #3b82f6;
+    --brand-hover: #60a5fa;
+    --brand-dim: rgba(59, 130, 246, 0.12);
+    --brand-dim-strong: rgba(59, 130, 246, 0.2);
+    --brand-edge: rgba(59, 130, 246, 0.35);
+    --brand-text: #93c5fd;
+
+    --bg: #090d16;
+    --bg-card: #0e1320;
+    --bg-inset: #060910;
+    --bg-raised: #131929;
+    --surface: #182033;
+    --surface-hover: #1f2a42;
+    --surface-active: #283654;
+
+    --border: #1a2236;
+    --border-strong: #242f49;
+
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-faint: #64748b;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+
+    --success: #22c55e;
+    --success-dim: rgba(34, 197, 94, 0.12);
+    --success-edge: rgba(34, 197, 94, 0.32);
+    --success-text: #4ade80;
+
+    --danger: #ef4444;
+    --danger-dim: rgba(239, 68, 68, 0.12);
+    --danger-edge: rgba(239, 68, 68, 0.35);
+    --danger-text: #f87171;
+
+    --warning: #f59e0b;
+    --warning-dim: rgba(245, 158, 11, 0.12);
+    --warning-edge: rgba(245, 158, 11, 0.32);
+    --warning-text: #fbbf24;
+
+    --term-bg: #060910;
+    --term-head-bg: #0a0e1a;
+    --term-toolbar-bg: #0e1320;
+    --term-border: #1a2236;
+    --term-fg: #f1f5f9;
+    --term-fg-muted: #94a3b8;
+    --term-fg-faint: #64748b;
+    --term-tab-hover: rgba(255, 255, 255, 0.07);
+    --term-tab-active-bg: rgba(255, 255, 255, 0.12);
+    --term-tab-active-border: rgba(255, 255, 255, 0.16);
+    --term-tab-active-fg: #ffffff;
+
+    --ansi-black: #060910;
+    --ansi-red: #ef4444;
+    --ansi-green: #22c55e;
+    --ansi-yellow: #eab308;
+    --ansi-blue: #3b82f6;
+    --ansi-magenta: #a855f7;
+    --ansi-cyan: #06b6d4;
+    --ansi-white: #f1f5f9;
+    --ansi-bright-black: #64748b;
+    --ansi-bright-red: #f87171;
+    --ansi-bright-green: #4ade80;
+    --ansi-bright-yellow: #fde047;
+    --ansi-bright-blue: #60a5fa;
+    --ansi-bright-magenta: #c084fc;
+    --ansi-bright-cyan: #22d3ee;
+    --ansi-bright-white: #ffffff;
+
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.145 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.985 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.396 0.141 25.723);
+    --border: oklch(0.269 0 0);
+    --input: oklch(0.269 0 0);
+    --ring: oklch(0.439 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(0.269 0 0);
+    --sidebar-ring: oklch(0.439 0 0);
+  }
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  input, button, select, textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}

@@ -1,0 +1,252 @@
+.ports-page-header {
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.ports-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.ports-toolbar .toolbar-search {
+  width: clamp(220px, 26vw, 340px);
+  min-width: 180px;
+}
+
+.chip-row-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  height: 32px;
+  max-height: 32px;
+  overflow: hidden;
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  width: 100%;
+  min-height: 32px;
+  flex-shrink: 0;
+}
+
+.chip-row-container.is-expanded {
+  height: auto;
+  max-height: 280px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chip-row-container:not(.is-expanded) .chip-row {
+  height: 32px;
+  overflow: hidden;
+}
+
+.chip-row [data-slot="button"],
+.chip-expand-toggle {
+  height: 32px;
+}
+
+.chip-row [data-slot="button"].is-selected {
+  border-color: var(--brand);
+  background: var(--brand-dim);
+  color: var(--brand-text);
+  box-shadow: 0 0 0 1px var(--brand-edge);
+}
+
+.chip-row [data-slot="button"].is-selected:focus-visible {
+  box-shadow: 0 0 0 1px var(--brand), 0 0 0 4px var(--brand-dim-strong);
+}
+
+.chip-count {
+  margin-left: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.chip-expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chip-expand-toggle:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.chip-expand-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ports-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.ports-row {
+  display: grid;
+  grid-template-columns: 110px 140px minmax(180px, 1fr) 90px 160px 140px;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ports-row.is-head {
+  background: var(--bg-inset);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 16px;
+}
+
+.ports-row.is-data:hover {
+  background: var(--surface);
+}
+
+.ports-row.is-data:last-child {
+  border-bottom: none;
+}
+
+.ports-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.ports-group .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ports-group.managed .dot {
+  background: var(--success);
+}
+
+.ports-group.external .dot {
+  background: var(--warning);
+}
+
+.ports-group .count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.ports-group .end {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: normal;
+}
+
+.port-num {
+  font-family: var(--mono);
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.port-num .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.port-num.managed .dot {
+  background: var(--success);
+}
+
+.port-num.external .dot {
+  background: var(--warning);
+}
+
+.ports-cell-mono {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ports-cell-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.ports-cell-owner .cmd {
+  font-family: var(--mono);
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.ports-cell-faint {
+  font-family: var(--mono);
+  color: var(--text-faint);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ports-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.port-open-button svg {
+  width: 12px;
+  height: 12px;
+  margin-left: 2px;
+}
+
+@media (max-width: 1180px) {
+  .ports-page-header {
+    flex-direction: column;
+  }
+
+  .ports-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ports-toolbar .toolbar-search {
+    flex: 1;
+    width: auto;
+  }
+}
