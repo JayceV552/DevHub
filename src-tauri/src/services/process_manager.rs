@@ -115,6 +115,7 @@ impl<R: Runtime> ProcessManager<R> {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .env("BROWSERSLIST_IGNORE_OLD_DATA", "1")
             .kill_on_drop(false);
 
         #[cfg(unix)]

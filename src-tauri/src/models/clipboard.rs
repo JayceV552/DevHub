@@ -41,3 +41,19 @@ pub struct AppMemory {
     pub resident_bytes: u64,
     pub process_count: usize,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryConsumer {
+    pub name: String,
+    pub resident_bytes: u64,
+    pub process_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemMemorySnapshot {
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub consumers: Vec<MemoryConsumer>,
+}

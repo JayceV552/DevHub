@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
-use crate::models::Project;
+use crate::models::{Project, TodoBoardConfig};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -13,6 +13,8 @@ pub struct Config {
     pub projects: Vec<Project>,
     #[serde(default, rename = "columns")]
     pub columns: Vec<crate::models::ActivityColumn>,
+    #[serde(default)]
+    pub todo_board: TodoBoardConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

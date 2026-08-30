@@ -11,6 +11,7 @@ pub enum ActivityType {
     Release,
     Star,
     Fork,
+    Publish,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,6 +76,7 @@ pub struct ActivityColumn {
 #[serde(rename_all = "camelCase", default)]
 pub struct ColumnFilters {
     pub repositories: Vec<String>,
+    pub users: Vec<String>,
     pub types: Vec<ActivityType>,
     pub states: Vec<ActivityState>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -85,6 +87,15 @@ pub struct ColumnFilters {
 impl ColumnFilters {
     pub fn matches(&self, item: &ActivityItem) -> bool {
         if !self.repositories.is_empty() && !self.repositories.contains(&item.repository) {
+            return false;
+        }
+        if !self.users.is_empty()
+            && !item.actor.as_deref().is_some_and(|actor| {
+                self.users
+                    .iter()
+                    .any(|user| user.eq_ignore_ascii_case(actor))
+            })
+        {
             return false;
         }
         if !self.types.is_empty() && !self.types.contains(&item.activity_type) {
@@ -185,6 +196,12 @@ mod tests {
             ..Default::default()
         };
         assert!(!other_repo.matches(&it));
+
+        let by_user = ColumnFilters {
+            users: vec!["ALICE".into()],
+            ..Default::default()
+        };
+        assert!(by_user.matches(&it));
 
         let by_type = ColumnFilters {
             types: vec![ActivityType::Issue],

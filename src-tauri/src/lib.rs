@@ -99,6 +99,7 @@ pub fn run() {
             commands::clipboard::delete_clipboard_entry,
             commands::clipboard::clear_clipboard_history,
             commands::clipboard::app_memory,
+            commands::clipboard::system_memory,
             commands::github::github_activity,
             commands::github::github_dashboard,
             commands::github::github_status,
@@ -119,6 +120,14 @@ pub fn run() {
             commands::settings::update_settings,
             commands::settings::get_config_path,
             commands::settings::get_resolved_path,
+            commands::todo::todo_board,
+            commands::todo::todo_repository_issues,
+            commands::todo::set_todo_repositories,
+            commands::todo::add_todo,
+            commands::todo::update_todo,
+            commands::todo::set_todo_step,
+            commands::todo::set_todo_completed,
+            commands::todo::delete_todo,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DevHub")

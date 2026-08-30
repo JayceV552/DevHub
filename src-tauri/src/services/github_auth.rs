@@ -192,7 +192,12 @@ impl DeviceFlow {
             .map_err(|err| Error::GitHub(format!("unexpected response: {err}")))?;
 
         if let Some(error) = body.error {
-            return Err(Error::GitHub(describe(&error)));
+            return match error.as_str() {
+                "incorrect_client_credentials" | "bad_refresh_token" | "expired_token" => {
+                    Err(Error::GitHubUnauthorized)
+                }
+                _ => Err(Error::GitHub(describe(&error))),
+            };
         }
         let access_token = body
             .access_token

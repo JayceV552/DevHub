@@ -7,23 +7,40 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::error::{Error, Result};
-use crate::models::{ActivityItem, ActivityLabel, ActivityState, ActivityType};
+use crate::models::{
+    ActivityItem, ActivityLabel, ActivityState, ActivityType, RepositoryIssueGroup,
+    RepositoryIssuePage,
+};
 
 const GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const REST_URL: &str = "https://api.github.com";
 const USER_AGENT: &str = "DevHub";
 const CACHE_TTL: Duration = Duration::from_secs(120);
 const PER_KIND: usize = 10;
+const TODO_ISSUES_PER_REPO: usize = 6;
 const REPOS_PER_QUERY: usize = 8;
 
 pub struct GitHubClient {
     http: reqwest::Client,
     cache: Mutex<Option<CachedFeed>>,
     dashboard_cache: Mutex<Option<CachedDashboard>>,
+    user_cache: Mutex<Option<CachedUserFeed>>,
+    validated_token: Mutex<Option<ValidatedToken>>,
+}
+
+struct ValidatedToken {
+    token: String,
+    checked_at: Instant,
 }
 
 struct CachedDashboard {
     fetched_at: Instant,
+    items: Vec<ActivityItem>,
+}
+
+struct CachedUserFeed {
+    fetched_at: Instant,
+    users: Vec<String>,
     items: Vec<ActivityItem>,
 }
 
@@ -64,7 +81,37 @@ impl GitHubClient {
                 .unwrap_or_default(),
             cache: Mutex::new(None),
             dashboard_cache: Mutex::new(None),
+            user_cache: Mutex::new(None),
+            validated_token: Mutex::new(None),
         }
+    }
+
+    pub async fn validate_token(&self, token: &str) -> Result<()> {
+        if self
+            .validated_token
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|entry| entry.token == token && entry.checked_at.elapsed() < CACHE_TTL)
+        {
+            return Ok(());
+        }
+
+        let response = self
+            .http
+            .get(format!("{REST_URL}/user"))
+            .bearer_auth(token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await
+            .map_err(|err| Error::GitHub(err.to_string()))?;
+        ensure_success(response).await?;
+
+        *self.validated_token.lock().unwrap() = Some(ValidatedToken {
+            token: token.to_string(),
+            checked_at: Instant::now(),
+        });
+        Ok(())
     }
 
     pub async fn activity(
@@ -100,6 +147,88 @@ impl GitHubClient {
         Ok(items)
     }
 
+    pub async fn issue_groups(
+        &self,
+        token: &str,
+        repos: &[RepoRef],
+    ) -> Result<Vec<RepositoryIssueGroup>> {
+        let mut groups = Vec::new();
+        for chunk in repos.chunks(REPOS_PER_QUERY) {
+            let response = self
+                .http
+                .post(GRAPHQL_URL)
+                .bearer_auth(token)
+                .json(&json!({ "query": build_issue_query(chunk) }))
+                .send()
+                .await
+                .map_err(|error| Error::GitHub(error.to_string()))?;
+            let response = ensure_success(response).await?;
+            let body: IssueGraphQlResponse = response
+                .json()
+                .await
+                .map_err(|error| Error::GitHub(format!("unexpected response: {error}")))?;
+            let Some(data) = body.data else {
+                let message = body
+                    .errors
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|error| error.message)
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                return Err(Error::GitHub(if message.is_empty() {
+                    "empty response".into()
+                } else {
+                    message
+                }));
+            };
+            groups.extend(collect_issue_groups(data, chunk));
+        }
+        Ok(groups)
+    }
+
+    pub async fn issue_page(
+        &self,
+        token: &str,
+        repo: &RepoRef,
+        cursor: Option<&str>,
+    ) -> Result<RepositoryIssuePage> {
+        let response = self
+            .http
+            .post(GRAPHQL_URL)
+            .bearer_auth(token)
+            .json(&json!({ "query": build_issue_page_query(repo, cursor) }))
+            .send()
+            .await
+            .map_err(|error| Error::GitHub(error.to_string()))?;
+        let response = ensure_success(response).await?;
+        let body: IssueGraphQlResponse = response
+            .json()
+            .await
+            .map_err(|error| Error::GitHub(format!("unexpected response: {error}")))?;
+        let Some(mut data) = body.data else {
+            return Err(graphql_errors(body.errors));
+        };
+        let Some(repository) = data.remove("r0").flatten() else {
+            return Err(Error::GitHub(format!(
+                "repository {}/{} is unavailable",
+                repo.owner, repo.name
+            )));
+        };
+        let issues = repository
+            .issues
+            .nodes
+            .iter()
+            .map(|issue| issue_item(&repository.name_with_owner, repo, issue))
+            .collect();
+        Ok(RepositoryIssuePage {
+            repository: repository.name_with_owner,
+            total_count: repository.issues.total_count,
+            issues,
+            end_cursor: repository.issues.page_info.end_cursor,
+            has_next_page: repository.issues.page_info.has_next_page,
+        })
+    }
+
     pub async fn repositories(&self, token: &str) -> Result<Vec<String>> {
         let query = r#"query {
   viewer {
@@ -121,15 +250,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-
-        if response.status() == reqwest::StatusCode::UNAUTHORIZED
-            || response.status() == reqwest::StatusCode::FORBIDDEN
-        {
-            return Err(Error::GitHubUnauthorized);
-        }
-        if !response.status().is_success() {
-            return Err(Error::GitHub(format!("HTTP {}", response.status())));
-        }
+        let response = ensure_success(response).await?;
 
         let body: ViewerResponse = response
             .json()
@@ -181,7 +302,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-        ensure_success(&response)?;
+        let response = ensure_success(response).await?;
         let body: RepositorySearch = response
             .json()
             .await
@@ -205,7 +326,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-        ensure_success(&viewer_response)?;
+        let viewer_response = ensure_success(viewer_response).await?;
         let viewer: RestUser = viewer_response
             .json()
             .await
@@ -225,7 +346,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-        ensure_success(&response)?;
+        let response = ensure_success(response).await?;
         let events: Vec<RestEvent> = response
             .json()
             .await
@@ -246,6 +367,65 @@ impl GitHubClient {
         items.sort_by_key(|item| std::cmp::Reverse(item.timestamp));
         *self.dashboard_cache.lock().unwrap() = Some(CachedDashboard {
             fetched_at: Instant::now(),
+            items: items.clone(),
+        });
+        Ok(items)
+    }
+
+    /// Public activity performed by specific GitHub users. The Events API is
+    /// the only GitHub API that exposes WatchEvent (star) and PublicEvent in a
+    /// single chronological feed alongside pushes and issue/PR activity.
+    pub async fn user_activity(
+        &self,
+        token: &str,
+        users: &[String],
+        force: bool,
+    ) -> Result<Vec<ActivityItem>> {
+        let mut cache_key: Vec<String> = users
+            .iter()
+            .map(|user| user.trim().to_ascii_lowercase())
+            .filter(|user| !user.is_empty())
+            .collect();
+        cache_key.sort();
+        cache_key.dedup();
+
+        if !force
+            && let Some(cached) = self.user_cache.lock().unwrap().as_ref()
+            && cached.fetched_at.elapsed() < CACHE_TTL
+            && cached.users == cache_key
+        {
+            return Ok(cached.items.clone());
+        }
+
+        let mut items = Vec::new();
+        for user in &cache_key {
+            let mut url =
+                reqwest::Url::parse(REST_URL).map_err(|err| Error::GitHub(err.to_string()))?;
+            url.path_segments_mut()
+                .map_err(|_| Error::GitHub("invalid GitHub API URL".into()))?
+                .extend(["users", user, "events", "public"]);
+            url.query_pairs_mut().append_pair("per_page", "100");
+            let response = self
+                .http
+                .get(url)
+                .bearer_auth(token)
+                .header("Accept", "application/vnd.github+json")
+                .send()
+                .await
+                .map_err(|err| Error::GitHub(err.to_string()))?;
+            let response = ensure_success(response).await?;
+            let events: Vec<RestEvent> = response
+                .json()
+                .await
+                .map_err(|err| Error::GitHub(format!("unexpected response: {err}")))?;
+            items.extend(events.into_iter().filter_map(event_item));
+        }
+
+        items.sort_by_key(|item| std::cmp::Reverse(item.timestamp));
+        items.dedup_by(|left, right| left.id == right.id);
+        *self.user_cache.lock().unwrap() = Some(CachedUserFeed {
+            fetched_at: Instant::now(),
+            users: cache_key,
             items: items.clone(),
         });
         Ok(items)
@@ -272,7 +452,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-        ensure_success(&response)?;
+        let response = ensure_success(response).await?;
         let value: serde_json::Value = response
             .json()
             .await
@@ -337,6 +517,8 @@ impl GitHubClient {
     pub fn invalidate(&self) {
         *self.cache.lock().unwrap() = None;
         *self.dashboard_cache.lock().unwrap() = None;
+        *self.user_cache.lock().unwrap() = None;
+        *self.validated_token.lock().unwrap() = None;
     }
 
     async fn fetch_chunk(&self, token: &str, repos: &[RepoRef]) -> Result<Vec<ActivityItem>> {
@@ -350,15 +532,7 @@ impl GitHubClient {
             .send()
             .await
             .map_err(|err| Error::GitHub(err.to_string()))?;
-
-        if response.status() == reqwest::StatusCode::UNAUTHORIZED
-            || response.status() == reqwest::StatusCode::FORBIDDEN
-        {
-            return Err(Error::GitHubUnauthorized);
-        }
-        if !response.status().is_success() {
-            return Err(Error::GitHub(format!("HTTP {}", response.status())));
-        }
+        let response = ensure_success(response).await?;
 
         let body: GraphQlResponse = response
             .json()
@@ -390,17 +564,53 @@ impl Default for GitHubClient {
     }
 }
 
-fn ensure_success(response: &reqwest::Response) -> Result<()> {
-    if matches!(
-        response.status(),
-        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
-    ) {
+async fn ensure_success(response: reqwest::Response) -> Result<reqwest::Response> {
+    let status = response.status();
+    if status.is_success() {
+        return Ok(response);
+    }
+    if status == reqwest::StatusCode::UNAUTHORIZED {
         return Err(Error::GitHubUnauthorized);
     }
-    if !response.status().is_success() {
-        return Err(Error::GitHub(format!("HTTP {}", response.status())));
+
+    let accepted_permissions = response
+        .headers()
+        .get("x-accepted-github-permissions")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    let body = response.text().await.unwrap_or_default();
+    let message = serde_json::from_str::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|value| value.get("message")?.as_str().map(str::to_string))
+        .filter(|message| !message.is_empty())
+        .unwrap_or_else(|| format!("HTTP {status}"));
+
+    if status == reqwest::StatusCode::FORBIDDEN {
+        let permissions = accepted_permissions
+            .filter(|value| !value.is_empty())
+            .map(|value| format!(" Required GitHub App permissions: {value}."))
+            .unwrap_or_default();
+        return Err(Error::GitHub(format!(
+            "GitHub denied access: {message}.{permissions} Check the app's permissions and repository installation."
+        )));
     }
-    Ok(())
+    Err(Error::GitHub(format!(
+        "GitHub returned {status}: {message}"
+    )))
+}
+
+fn graphql_errors(errors: Option<Vec<GraphQlError>>) -> Error {
+    let message = errors
+        .unwrap_or_default()
+        .into_iter()
+        .map(|error| error.message)
+        .collect::<Vec<_>>()
+        .join("; ");
+    Error::GitHub(if message.is_empty() {
+        "empty response".into()
+    } else {
+        message
+    })
 }
 
 fn event_item(event: RestEvent) -> Option<ActivityItem> {
@@ -409,13 +619,15 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
     let actor = Some(event.actor.login);
     let actor_avatar = Some(event.actor.avatar_url);
     let payload = event.payload;
-    let action = payload
+    let raw_action = payload
         .get("action")
         .and_then(serde_json::Value::as_str)
         .map(str::to_string);
+    let repository_name = repository.rsplit('/').next().unwrap_or(&repository);
     let empty_labels = || Vec::<ActivityLabel>::new();
 
-    let (activity_type, state, number, title, url, body, labels) = match event.kind.as_str() {
+    let (activity_type, state, number, title, url, body, labels, action) = match event.kind.as_str()
+    {
         "PushEvent" => {
             let commit = payload
                 .get("commits")
@@ -446,16 +658,28 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                 format!("{repo_url}/commits/{branch}"),
                 None,
                 empty_labels(),
+                Some("pushed a commit".into()),
             )
         }
         "WatchEvent" => (
             ActivityType::Star,
             ActivityState::Published,
             None,
-            "starred this repository".into(),
+            repository_name.to_string(),
             repo_url.clone(),
             None,
             empty_labels(),
+            Some("starred this repository".into()),
+        ),
+        "PublicEvent" => (
+            ActivityType::Publish,
+            ActivityState::Published,
+            None,
+            repository_name.to_string(),
+            repo_url.clone(),
+            None,
+            empty_labels(),
+            Some("made this repository public".into()),
         ),
         "ForkEvent" => {
             let fork = payload.get("forkee");
@@ -476,6 +700,7 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                 url,
                 None,
                 empty_labels(),
+                Some("forked this repository".into()),
             )
         }
         "PullRequestEvent" | "PullRequestReviewEvent" | "PullRequestReviewCommentEvent" => {
@@ -507,6 +732,15 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
                 json_labels(pr.get("labels")),
+                Some(if merged {
+                    "merged a pull request".into()
+                } else {
+                    match raw_action.as_deref() {
+                        Some("opened") => "opened a pull request".into(),
+                        Some("closed") => "closed a pull request".into(),
+                        _ => "updated a pull request".into(),
+                    }
+                }),
             )
         }
         "IssuesEvent" | "IssueCommentEvent" => {
@@ -542,6 +776,19 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
                 json_labels(issue.get("labels")),
+                Some(if event.kind == "IssueCommentEvent" {
+                    if is_pr {
+                        "commented on a pull request".into()
+                    } else {
+                        "commented on an issue".into()
+                    }
+                } else {
+                    match raw_action.as_deref() {
+                        Some("opened") => "opened an issue".into(),
+                        Some("closed") => "closed an issue".into(),
+                        _ => "updated an issue".into(),
+                    }
+                }),
             )
         }
         "DiscussionEvent" | "DiscussionCommentEvent" => {
@@ -565,6 +812,11 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
                 empty_labels(),
+                Some(if event.kind == "DiscussionCommentEvent" {
+                    "commented on a discussion".into()
+                } else {
+                    "updated a discussion".into()
+                }),
             )
         }
         "ReleaseEvent" => {
@@ -589,6 +841,7 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
                 empty_labels(),
+                Some("published a release".into()),
             )
         }
         "CreateEvent" | "DeleteEvent" => {
@@ -606,11 +859,15 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
                 None,
                 format!(
                     "{} {ref_type} {reference}",
-                    action.as_deref().unwrap_or("updated")
+                    raw_action.as_deref().unwrap_or("updated")
                 ),
                 repo_url.clone(),
                 None,
                 empty_labels(),
+                Some(format!(
+                    "{} a {ref_type}",
+                    raw_action.as_deref().unwrap_or("updated")
+                )),
             )
         }
         _ => return None,
@@ -628,7 +885,10 @@ fn event_item(event: RestEvent) -> Option<ActivityItem> {
         actor,
         actor_avatar,
         timestamp: event.created_at,
-        comment_count: None,
+        comment_count: payload
+            .pointer("/pull_request/comments")
+            .or_else(|| payload.pointer("/issue/comments"))
+            .and_then(serde_json::Value::as_i64),
         body,
         labels,
         additions: None,
@@ -668,7 +928,10 @@ fn build_query(repos: &[RepoRef]) -> String {
     pullRequests(first: {n}, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
       nodes {{ number title bodyText url state updatedAt mergedAt additions deletions changedFiles reviewDecision labels(first: 10) {{ nodes {{ name color }} }} comments {{ totalCount }} author {{ login avatarUrl }} }}
     }}
-    issues(first: {n}, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
+    openIssues: issues(first: {n}, states: OPEN, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
+      nodes {{ number title bodyText url state updatedAt labels(first: 10) {{ nodes {{ name color }} }} comments {{ totalCount }} author {{ login avatarUrl }} }}
+    }}
+    closedIssues: issues(first: {n}, states: CLOSED, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
       nodes {{ number title bodyText url state updatedAt labels(first: 10) {{ nodes {{ name color }} }} comments {{ totalCount }} author {{ login avatarUrl }} }}
     }}
     discussions(first: {n}, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
@@ -696,6 +959,104 @@ fn build_query(repos: &[RepoRef]) -> String {
         .collect();
 
     format!("query {{\n{}\n}}", blocks.join("\n"))
+}
+
+fn build_issue_query(repos: &[RepoRef]) -> String {
+    let blocks: Vec<String> = repos
+        .iter()
+        .enumerate()
+        .map(|(index, repo)| {
+            format!(
+                r#"  r{index}: repository(owner: {owner}, name: {name}) {{
+    nameWithOwner
+    issues(first: {count}, states: OPEN, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
+      totalCount
+      pageInfo {{ endCursor hasNextPage }}
+      nodes {{ number title bodyText url state updatedAt labels(first: 6) {{ nodes {{ name color }} }} comments {{ totalCount }} author {{ login avatarUrl }} }}
+    }}
+  }}"#,
+                owner = serde_json::Value::String(repo.owner.clone()),
+                name = serde_json::Value::String(repo.name.clone()),
+                count = TODO_ISSUES_PER_REPO,
+            )
+        })
+        .collect();
+    format!("query {{\n{}\n}}", blocks.join("\n"))
+}
+
+fn build_issue_page_query(repo: &RepoRef, cursor: Option<&str>) -> String {
+    let after = cursor
+        .map(|value| format!(", after: {}", serde_json::Value::String(value.to_string())))
+        .unwrap_or_default();
+    format!(
+        r#"query {{
+  r0: repository(owner: {owner}, name: {name}) {{
+    nameWithOwner
+    issues(first: 30{after}, states: OPEN, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
+      totalCount
+      pageInfo {{ endCursor hasNextPage }}
+      nodes {{ number title bodyText url state updatedAt labels(first: 6) {{ nodes {{ name color }} }} comments {{ totalCount }} author {{ login avatarUrl }} }}
+    }}
+  }}
+}}"#,
+        owner = serde_json::Value::String(repo.owner.clone()),
+        name = serde_json::Value::String(repo.name.clone()),
+    )
+}
+
+fn collect_issue_groups(
+    data: HashMap<String, Option<IssueRepository>>,
+    repos: &[RepoRef],
+) -> Vec<RepositoryIssueGroup> {
+    let mut groups = Vec::new();
+    for (index, repo_ref) in repos.iter().enumerate() {
+        let Some(Some(repository)) = data.get(&format!("r{index}")) else {
+            continue;
+        };
+        groups.push(RepositoryIssueGroup {
+            repository: repository.name_with_owner.clone(),
+            total_count: repository.issues.total_count,
+            issues: repository
+                .issues
+                .nodes
+                .iter()
+                .map(|issue| issue_item(&repository.name_with_owner, repo_ref, issue))
+                .collect(),
+            end_cursor: repository.issues.page_info.end_cursor.clone(),
+            has_next_page: repository.issues.page_info.has_next_page,
+        });
+    }
+    groups
+}
+
+fn issue_item(repository: &str, repo_ref: &RepoRef, issue: &Issue) -> ActivityItem {
+    ActivityItem {
+        id: format!("{repository}#issue{}", issue.number),
+        repository: repository.to_string(),
+        project_name: repo_ref.project_name.clone(),
+        activity_type: ActivityType::Issue,
+        state: ActivityState::Open,
+        number: Some(issue.number),
+        title: issue.title.clone(),
+        url: issue.url.clone(),
+        actor: issue.author.as_ref().map(|author| author.login.clone()),
+        actor_avatar: issue
+            .author
+            .as_ref()
+            .and_then(|author| author.avatar_url.clone()),
+        timestamp: issue.updated_at,
+        comment_count: issue.comments.as_ref().map(|comments| comments.total_count),
+        body: issue
+            .body_text
+            .clone()
+            .filter(|body| !body.trim().is_empty()),
+        labels: issue.labels.as_ref().map(label_nodes).unwrap_or_default(),
+        additions: None,
+        deletions: None,
+        changed_files: None,
+        review_decision: None,
+        action: Some("updated an issue".into()),
+    }
 }
 
 fn collect_items(
@@ -784,7 +1145,12 @@ fn collect_items(
             });
         }
 
-        for issue in &repo.issues.nodes {
+        for issue in repo
+            .open_issues
+            .nodes
+            .iter()
+            .chain(&repo.closed_issues.nodes)
+        {
             items.push(ActivityItem {
                 id: format!("{slug}#issue{}", issue.number),
                 repository: slug.clone(),
@@ -950,6 +1316,35 @@ struct GraphQlResponse {
 }
 
 #[derive(Deserialize)]
+struct IssueGraphQlResponse {
+    data: Option<HashMap<String, Option<IssueRepository>>>,
+    errors: Option<Vec<GraphQlError>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueRepository {
+    name_with_owner: String,
+    issues: IssueConnection,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueConnection {
+    #[serde(default)]
+    nodes: Vec<Issue>,
+    total_count: i64,
+    page_info: PageInfo,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PageInfo {
+    end_cursor: Option<String>,
+    has_next_page: bool,
+}
+
+#[derive(Deserialize)]
 struct GraphQlError {
     message: String,
 }
@@ -983,7 +1378,8 @@ struct Repository {
     name_with_owner: String,
     default_branch_ref: Option<BranchRef>,
     pull_requests: Nodes<PullRequest>,
-    issues: Nodes<Issue>,
+    open_issues: Nodes<Issue>,
+    closed_issues: Nodes<Issue>,
     discussions: Nodes<Discussion>,
     releases: Nodes<Release>,
 }
@@ -1105,6 +1501,18 @@ struct Release {
 mod tests {
     use super::*;
 
+    fn public_event(kind: &str, payload: serde_json::Value) -> RestEvent {
+        serde_json::from_value(serde_json::json!({
+            "id": format!("event-{kind}"),
+            "type": kind,
+            "actor": { "login": "JayceV552", "avatar_url": "https://avatars.example/jayce" },
+            "repo": { "name": "JayceV552/DevHub" },
+            "payload": payload,
+            "created_at": "2026-08-30T10:00:00Z"
+        }))
+        .expect("valid public event")
+    }
+
     fn repo(owner: &str, name: &str) -> RepoRef {
         RepoRef {
             owner: owner.into(),
@@ -1128,6 +1536,27 @@ mod tests {
     }
 
     #[test]
+    fn public_user_events_include_stars_and_repositories_becoming_public() {
+        let star = event_item(public_event(
+            "WatchEvent",
+            serde_json::json!({ "action": "started" }),
+        ))
+        .expect("star event");
+        assert_eq!(star.activity_type, ActivityType::Star);
+        assert_eq!(star.title, "DevHub");
+        assert_eq!(star.action.as_deref(), Some("starred this repository"));
+
+        let published =
+            event_item(public_event("PublicEvent", serde_json::json!({}))).expect("public event");
+        assert_eq!(published.activity_type, ActivityType::Publish);
+        assert_eq!(published.title, "DevHub");
+        assert_eq!(
+            published.action.as_deref(),
+            Some("made this repository public")
+        );
+    }
+
+    #[test]
     fn the_query_asks_for_every_kind_under_one_alias_per_repo() {
         let query = build_query(&[repo("dayflow-js", "calendar"), repo("dayflow-js", "pro")]);
 
@@ -1136,7 +1565,8 @@ mod tests {
         }
         for field in [
             "pullRequests(",
-            "issues(",
+            "openIssues: issues(",
+            "closedIssues: issues(",
             "discussions(",
             "history(",
             "releases(",
@@ -1145,6 +1575,65 @@ mod tests {
         }
         assert!(query.contains(r#"owner: "dayflow-js""#));
         assert!(query.contains(r#"name: "calendar""#));
+    }
+
+    #[test]
+    fn the_todo_query_only_requests_latest_open_issues() {
+        let query = build_issue_query(&[repo("dayflow-js", "calendar"), repo("dayflow-js", "pro")]);
+
+        assert!(query.contains("r0: repository"));
+        assert!(query.contains("r1: repository"));
+        assert!(query.contains("states: OPEN"));
+        assert!(query.contains("field: UPDATED_AT, direction: DESC"));
+        assert!(!query.contains("pullRequests("));
+        assert!(!query.contains("discussions("));
+        assert!(!query.contains("releases("));
+        assert!(query.contains("totalCount"));
+        assert!(query.contains("pageInfo"));
+    }
+
+    #[test]
+    fn issue_page_cursors_cannot_break_out_of_the_query() {
+        let query = build_issue_page_query(
+            &repo("shadcn-ui", "ui"),
+            Some("cursor\", states: CLOSED) { id } #"),
+        );
+        assert!(query.contains("first: 30"));
+        assert!(query.contains(r#"after: "cursor\""#));
+        assert!(!query.contains(r#"after: "cursor", states: CLOSED"#));
+    }
+
+    #[test]
+    fn issue_groups_keep_the_total_and_pagination_cursor() {
+        let body: IssueGraphQlResponse = serde_json::from_value(serde_json::json!({
+            "data": {
+                "r0": {
+                    "nameWithOwner": "shadcn-ui/ui",
+                    "issues": {
+                        "totalCount": 912,
+                        "pageInfo": { "endCursor": "next-page", "hasNextPage": true },
+                        "nodes": [{
+                            "number": 123,
+                            "title": "A popular issue",
+                            "bodyText": null,
+                            "url": "https://github.com/shadcn-ui/ui/issues/123",
+                            "state": "OPEN",
+                            "updatedAt": "2026-08-30T10:00:00Z",
+                            "labels": { "nodes": [] },
+                            "comments": { "totalCount": 2 },
+                            "author": null
+                        }]
+                    }
+                }
+            }
+        }))
+        .expect("valid response");
+        let groups = collect_issue_groups(body.data.unwrap(), &[repo("shadcn-ui", "ui")]);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].total_count, 912);
+        assert_eq!(groups[0].end_cursor.as_deref(), Some("next-page"));
+        assert!(groups[0].has_next_page);
+        assert_eq!(groups[0].issues[0].number, Some(123));
     }
 
     /// A repository name is user-supplied config. It must be encoded, not
@@ -1180,10 +1669,15 @@ mod tests {
                       "state": "OPEN", "createdAt": "2026-08-26T10:00:00Z", "updatedAt": "2026-08-26T10:00:00Z",
                       "mergedAt": null, "comments": {"totalCount": 0}, "author": null }
                 ]},
-                "issues": { "nodes": [
+                "openIssues": { "nodes": [
                     { "number": 279, "title": "Drag broken on Safari", "url": "https://github.com/x/279",
                       "state": "OPEN", "createdAt": "2026-08-27T10:00:00Z", "updatedAt": "2026-08-27T12:00:00Z",
                       "comments": {"totalCount": 2}, "author": {"login": "bob", "avatarUrl": null} }
+                ]},
+                "closedIssues": { "nodes": [
+                    { "number": 278, "title": "Old rendering bug", "url": "https://github.com/x/278",
+                      "state": "CLOSED", "createdAt": "2026-08-21T10:00:00Z", "updatedAt": "2026-08-22T12:00:00Z",
+                      "comments": {"totalCount": 1}, "author": {"login": "dana", "avatarUrl": null} }
                 ]},
                 "discussions": { "nodes": [
                     { "number": 63, "title": "Custom recurring events?", "url": "https://github.com/x/63",
@@ -1205,9 +1699,9 @@ mod tests {
     fn every_kind_becomes_an_activity_item() {
         let items = collect_items(sample_response(), &[repo("dayflow-js", "calendar")]);
 
-        // 1 commit + 2 PRs + 1 issue + 1 discussion + 1 published release. The draft
+        // 1 commit + 2 PRs + 2 issues + 1 discussion + 1 published release. The draft
         // release has no publish date and has not happened yet.
-        assert_eq!(items.len(), 6, "got {items:#?}");
+        assert_eq!(items.len(), 7, "got {items:#?}");
 
         let commit = items
             .iter()
@@ -1239,6 +1733,13 @@ mod tests {
         assert_eq!(open.state, ActivityState::Open);
         // A deleted account comes back as a null author; it must not be fatal.
         assert_eq!(open.actor, None);
+
+        let closed_issue = items
+            .iter()
+            .find(|item| item.number == Some(278))
+            .expect("closed issue 278");
+        assert_eq!(closed_issue.activity_type, ActivityType::Issue);
+        assert_eq!(closed_issue.state, ActivityState::Closed);
 
         let release = items
             .iter()
@@ -1273,12 +1774,21 @@ mod tests {
                 ActivityType::Release => "release",
                 ActivityType::Star => "star",
                 ActivityType::Fork => "fork",
+                ActivityType::Publish => "publish",
             })
             .collect();
 
         assert_eq!(
             order,
-            ["commit", "discussion", "issue", "pr", "pr", "release"]
+            [
+                "commit",
+                "discussion",
+                "issue",
+                "pr",
+                "pr",
+                "release",
+                "issue"
+            ]
         );
     }
 
@@ -1293,7 +1803,7 @@ mod tests {
             data,
             &[repo("dayflow-js", "calendar"), repo("private", "repo")],
         );
-        assert_eq!(items.len(), 6, "the visible repo's items should survive");
+        assert_eq!(items.len(), 7, "the visible repo's items should survive");
     }
 
     #[test]

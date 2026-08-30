@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::models::Project;
 use crate::services::{
     ActivityStore, ClientIdSource, ClipboardStore, Config, ConfigManager, DeviceFlow, GitHubClient,
-    PortManager, ProcessManager, RunRegistry, TrackedRun,
+    PortManager, ProcessManager, RunRegistry, TokenStore, TrackedRun,
 };
 
 pub struct AppState {
@@ -25,6 +25,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(app: AppHandle, config_dir: &Path) -> Result<Self> {
+        TokenStore::configure_development_directory(config_dir);
         let config_manager = ConfigManager::new(config_dir);
         let config = config_manager.load()?;
 
@@ -88,6 +89,10 @@ impl AppState {
 
     pub fn projects(&self) -> Vec<Project> {
         self.config.lock().unwrap().projects.clone()
+    }
+
+    pub fn todo_board(&self) -> crate::models::TodoBoardConfig {
+        self.config.lock().unwrap().todo_board.clone()
     }
 
     pub fn project(&self, id: &str) -> Option<Project> {

@@ -71,7 +71,9 @@ impl<R: Runtime> ClipboardStore<R> {
         let mut reclassified = false;
         for entry in &mut entries {
             if entry.kind == ClipboardKind::Image {
-                if let (Some(image_file), Some(preview_file)) = (&entry.image_file, &entry.preview_file) {
+                if let (Some(image_file), Some(preview_file)) =
+                    (&entry.image_file, &entry.preview_file)
+                {
                     let image_path = dir.join(image_file);
                     let preview_path = dir.join(preview_file);
                     if image_path.exists() {

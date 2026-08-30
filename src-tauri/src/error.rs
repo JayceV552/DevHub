@@ -52,9 +52,7 @@ pub enum Error {
     #[error("no GitHub token configured — add one in Settings")]
     NoGitHubToken,
 
-    #[error(
-        "GitHub rejected the token. Check that it is valid and has `repo` and `read:discussion` scope."
-    )]
+    #[error("GitHub authentication required.")]
     GitHubUnauthorized,
 
     #[error("GitHub request failed: {0}")]

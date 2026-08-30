@@ -6,6 +6,7 @@ fn column() -> ActivityColumn {
         title: "Pull requests".into(),
         filters: ColumnFilters {
             repositories: vec!["dayflow-js/calendar".into()],
+            users: vec!["jayce".into()],
             types: vec![ActivityType::PullRequest, ActivityType::Issue],
             states: vec![ActivityState::Open, ActivityState::Merged],
             query: Some("safari".into()),
@@ -30,6 +31,7 @@ fn a_column_survives_being_written_to_and_read_from_toml() {
     assert_eq!(read.id, "pull-requests");
     assert_eq!(read.title, "Pull requests");
     assert_eq!(read.filters.repositories, vec!["dayflow-js/calendar"]);
+    assert_eq!(read.filters.users, vec!["jayce"]);
     assert_eq!(
         read.filters.types,
         vec![ActivityType::PullRequest, ActivityType::Issue]

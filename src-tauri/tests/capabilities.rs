@@ -74,3 +74,31 @@ fn the_folder_picker_is_permitted() {
         "the add-project flow cannot open a folder picker without dialog:allow-open",
     );
 }
+
+#[test]
+fn double_clicking_the_sidebar_can_toggle_window_maximize() {
+    let raw = std::fs::read_to_string("capabilities/default.json").expect("capability file");
+    let json: Value = serde_json::from_str(&raw).expect("valid JSON");
+    let permissions = json["permissions"].as_array().expect("permissions array");
+
+    assert!(
+        permissions
+            .iter()
+            .any(|permission| permission.as_str() == Some("core:window:allow-toggle-maximize")),
+        "the sidebar double-click cannot maximize the window without window permission",
+    );
+}
+
+#[test]
+fn page_and_sidebar_headers_can_start_window_dragging() {
+    let raw = std::fs::read_to_string("capabilities/default.json").expect("capability file");
+    let json: Value = serde_json::from_str(&raw).expect("valid JSON");
+    let permissions = json["permissions"].as_array().expect("permissions array");
+
+    assert!(
+        permissions
+            .iter()
+            .any(|permission| permission.as_str() == Some("core:window:allow-start-dragging")),
+        "page and sidebar headers cannot drag the window without window permission",
+    );
+}

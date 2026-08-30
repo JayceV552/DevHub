@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
-use tauri::{AppHandle, Emitter, State};
+use std::collections::{BTreeMap, BTreeSet};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::error::{Error, Result};
 use crate::models::ActivityItem;
@@ -11,30 +11,43 @@ use crate::state::AppState;
 
 pub const EVENT_AUTH: &str = "devhub://github-auth";
 
-async fn current_token(state: &AppState) -> Result<String> {
+pub(crate) async fn current_token(state: &AppState) -> Result<String> {
     let store = TokenStore::github();
     let credential = store.get()?.ok_or(Error::NoGitHubToken)?;
 
     if !credential.is_expired() {
-        return Ok(credential.token().to_string());
+        match state.github.validate_token(credential.token()).await {
+            Ok(()) => return Ok(credential.token().to_string()),
+            Err(Error::GitHubUnauthorized) if credential.refresh_token().is_some() => {}
+            Err(err) => return Err(err),
+        }
     }
 
     let (Some(refresh_token), Some((client_id, _))) =
         (credential.refresh_token(), state.github_client_id())
     else {
-        return Err(Error::GitHub(
-            "the GitHub session has expired — sign in again in Settings".into(),
-        ));
+        return Err(Error::GitHubUnauthorized);
     };
 
-    let refreshed = state.device_flow.refresh(&client_id, refresh_token).await?;
+    let refreshed = state
+        .device_flow
+        .refresh(&client_id, refresh_token)
+        .await
+        .map_err(|_| Error::GitHubUnauthorized)?;
     store.set(&refreshed)?;
+    state.github.invalidate();
+    state
+        .github
+        .validate_token(refreshed.token())
+        .await
+        .map_err(|_| Error::GitHubUnauthorized)?;
     Ok(refreshed.token().to_string())
 }
 
 #[tauri::command]
 pub async fn github_activity(state: State<'_, AppState>, force: bool) -> Result<Vec<ActivityItem>> {
     let token = current_token(&state).await?;
+    let columns = state.columns();
 
     let mut repos = BTreeMap::<String, RepoRef>::new();
     for project in state.projects() {
@@ -45,8 +58,9 @@ pub async fn github_activity(state: State<'_, AppState>, force: bool) -> Result<
             repos.insert(slug.to_string(), repo);
         }
     }
-    for slug in state
-        .columns()
+    for slug in columns
+        .iter()
+        .cloned()
         .into_iter()
         .flat_map(|column| column.filters.repositories)
     {
@@ -56,11 +70,25 @@ pub async fn github_activity(state: State<'_, AppState>, force: bool) -> Result<
     }
     let repos: Vec<RepoRef> = repos.into_values().collect();
 
-    if repos.is_empty() {
-        return Ok(Vec::new());
-    }
+    let users: Vec<String> = columns
+        .into_iter()
+        .flat_map(|column| column.filters.users)
+        .filter(|user| !user.trim().is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
 
-    state.github.activity(&token, &repos, force).await
+    let mut items = if repos.is_empty() {
+        Vec::new()
+    } else {
+        state.github.activity(&token, &repos, force).await?
+    };
+    if !users.is_empty() {
+        items.extend(state.github.user_activity(&token, &users, force).await?);
+    }
+    items.sort_by_key(|item| std::cmp::Reverse(item.timestamp));
+    items.dedup_by(|left, right| left.id == right.id);
+    Ok(items)
 }
 
 #[tauri::command]
@@ -111,12 +139,21 @@ pub async fn github_start_login(app: AppHandle, state: State<'_, AppState>) -> R
     let device_flow = std::sync::Arc::clone(&state.device_flow);
     tauri::async_runtime::spawn(async move {
         let outcome = match device_flow.wait(&client_id).await {
-            Ok(credential) => match TokenStore::github().set(&credential) {
-                Ok(()) => LoginOutcome::Authorized,
-                Err(err) => LoginOutcome::Failed {
-                    message: err.to_string(),
-                },
-            },
+            Ok(credential) => {
+                let state = app.state::<AppState>();
+                state.github.invalidate();
+                match state.github.validate_token(credential.token()).await {
+                    Ok(()) => match TokenStore::github().set(&credential) {
+                        Ok(()) => LoginOutcome::Authorized,
+                        Err(err) => LoginOutcome::Failed {
+                            message: err.to_string(),
+                        },
+                    },
+                    Err(err) => LoginOutcome::Failed {
+                        message: err.to_string(),
+                    },
+                }
+            }
             Err(Error::GitHub(message)) if message.contains("declined") => LoginOutcome::Denied,
             Err(Error::GitHub(message)) if message.contains("expired") => LoginOutcome::Expired,
             Err(Error::Other(message)) if message.contains("cancelled") => LoginOutcome::Cancelled,
@@ -136,15 +173,16 @@ pub fn github_cancel_login(state: State<'_, AppState>) {
 }
 
 #[tauri::command]
-pub fn set_github_token(state: State<'_, AppState>, token: String) -> Result<()> {
+pub async fn set_github_token(state: State<'_, AppState>, token: String) -> Result<()> {
     let token = token.trim();
     if token.is_empty() {
         return Err(Error::Other("token is empty".into()));
     }
+    state.github.invalidate();
+    state.github.validate_token(token).await?;
     TokenStore::github().set(&Credential::Pat {
         token: token.to_string(),
     })?;
-    state.github.invalidate();
     Ok(())
 }
 

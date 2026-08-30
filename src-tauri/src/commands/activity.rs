@@ -1,7 +1,9 @@
 use tauri::State;
 
 use crate::error::{Error, Result};
-use crate::models::{ActivityColumn, ActivityItem, ColumnFilters, SavedItem};
+use crate::models::{
+    ActivityColumn, ActivityItem, ActivityState, ActivityType, ColumnFilters, SavedItem,
+};
 use crate::services::default_columns;
 use crate::state::AppState;
 
@@ -21,6 +23,15 @@ pub fn list_columns(state: State<'_, AppState>) -> Result<Vec<ActivityColumn>> {
         };
         let mut migrated = existing.clone();
         migrated.retain(|column| !matches!(column.id.as_str(), "all" | "pull-requests" | "issues"));
+        let mut cleared_legacy_issue_state = false;
+        for column in &mut migrated {
+            if column.filters.types == [ActivityType::Issue]
+                && column.filters.states == [ActivityState::Open]
+            {
+                column.filters.states.clear();
+                cleared_legacy_issue_state = true;
+            }
+        }
         if !migrated.iter().any(|column| column.id == "dashboard") {
             migrated.insert(
                 0,
@@ -42,10 +53,11 @@ pub fn list_columns(state: State<'_, AppState>) -> Result<Vec<ActivityColumn>> {
                 ));
             }
         }
-        if migrated
-            .iter()
-            .map(|column| &column.id)
-            .eq(existing.iter().map(|column| &column.id))
+        if !cleared_legacy_issue_state
+            && migrated
+                .iter()
+                .map(|column| &column.id)
+                .eq(existing.iter().map(|column| &column.id))
         {
             return Ok(existing);
         }
@@ -199,11 +211,15 @@ pub async fn activity_board(state: State<'_, AppState>, force: bool) -> Result<B
                 } else {
                     &items
                 };
-                let matching: Vec<ActivityItem> = source
-                    .iter()
-                    .filter(|item| column.filters.matches(item))
-                    .cloned()
-                    .collect();
+                let matching: Vec<ActivityItem> = if column.id == "dashboard" {
+                    source.clone()
+                } else {
+                    source
+                        .iter()
+                        .filter(|item| column.filters.matches(item))
+                        .cloned()
+                        .collect()
+                };
 
                 let unread = match column.read_through {
                     Some(read_through) => matching

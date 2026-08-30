@@ -1,4 +1,10 @@
-use std::sync::Mutex;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -46,23 +52,51 @@ impl Credential {
 
 pub struct TokenStore {
     account: String,
+    backend: Backend,
+}
+
+#[derive(Debug, Clone)]
+enum Backend {
+    Keychain,
+    DevelopmentFile(PathBuf),
 }
 
 static CACHE: Mutex<Option<Option<Credential>>> = Mutex::new(None);
+static DEVELOPMENT_DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
 
 const SERVICE: &str = "DevHub";
 
 impl TokenStore {
+    /// Ad-hoc signed macOS binaries get a new identity on every rebuild, so
+    /// Keychain asks for the login password again even when their path is
+    /// unchanged. Properly signed builds stay in Keychain; local/unsigned
+    /// builds use a user-only file in the app config directory.
+    pub fn configure_development_directory(config_dir: &Path) {
+        if uses_local_credential_file() {
+            let _ = DEVELOPMENT_DIRECTORY.set(config_dir.to_path_buf());
+        }
+    }
+
     pub fn github() -> Self {
         Self {
             account: "github-token".to_string(),
+            backend: DEVELOPMENT_DIRECTORY
+                .get()
+                .filter(|_| uses_local_credential_file())
+                .map(|directory| Backend::DevelopmentFile(directory.join("github-credential.json")))
+                .unwrap_or(Backend::Keychain),
         }
     }
 
     #[cfg(test)]
     pub fn for_account(account: impl Into<String>) -> Self {
+        let account = account.into();
         Self {
-            account: account.into(),
+            backend: Backend::DevelopmentFile(std::env::temp_dir().join(format!(
+                "devhub-token-store-tests-{}-{account}.json",
+                std::process::id(),
+            ))),
+            account,
         }
     }
 
@@ -81,31 +115,55 @@ impl TokenStore {
     }
 
     fn read_through(&self) -> Result<Option<Credential>> {
+        if let Backend::DevelopmentFile(path) = &self.backend {
+            let raw = match fs::read_to_string(path) {
+                Ok(value) => value,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(error) => {
+                    return Err(Error::Other(format!(
+                        "could not read development credential store: {error}"
+                    )));
+                }
+            };
+            return decode_credential(raw);
+        }
+
         let raw = match self.entry()?.get_password() {
             Ok(value) => value,
             Err(keyring::Error::NoEntry) => return Ok(None),
             Err(err) => return Err(Error::Keychain(err.to_string())),
         };
 
-        Ok(Some(
-            serde_json::from_str(&raw).unwrap_or(Credential::Pat { token: raw }),
-        ))
+        decode_credential(raw)
     }
 
     pub fn set(&self, credential: &Credential) -> Result<()> {
         let encoded = serde_json::to_string(credential)
             .map_err(|err| Error::Other(format!("could not encode credential: {err}")))?;
-        self.entry()?
-            .set_password(&encoded)
-            .map_err(|err| Error::Keychain(err.to_string()))?;
+        match &self.backend {
+            Backend::Keychain => self
+                .entry()?
+                .set_password(&encoded)
+                .map_err(|err| Error::Keychain(err.to_string()))?,
+            Backend::DevelopmentFile(path) => write_private(path, encoded.as_bytes())?,
+        }
         self.fill_cache(Some(credential.clone()));
         Ok(())
     }
 
     pub fn clear(&self) -> Result<()> {
-        let result = match self.entry()?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(err) => Err(Error::Keychain(err.to_string())),
+        let result = match &self.backend {
+            Backend::Keychain => match self.entry()?.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(err) => Err(Error::Keychain(err.to_string())),
+            },
+            Backend::DevelopmentFile(path) => match fs::remove_file(path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(Error::Other(format!(
+                    "could not clear development credential store: {error}"
+                ))),
+            },
         };
         self.fill_cache(None);
         result
@@ -128,11 +186,37 @@ impl TokenStore {
     }
 }
 
+fn uses_local_credential_file() -> bool {
+    cfg!(target_os = "macos") && option_env!("DEVHUB_STABLE_SIGNING").is_none()
+}
+
+fn decode_credential(raw: String) -> Result<Option<Credential>> {
+    Ok(Some(
+        serde_json::from_str(&raw).unwrap_or(Credential::Pat { token: raw }),
+    ))
+}
+
+fn write_private(path: &Path, value: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut options = OpenOptions::new();
+    options.create(true).truncate(true).write(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options.open(path)?;
+    file.write_all(value)?;
+    file.sync_all()?;
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// A keychain entry unique to one test.
+    /// A credential file unique to one test.
     ///
     /// Tests run in parallel, so a shared account name would have them
     /// overwriting and deleting each other's entries — which is exactly what
@@ -143,8 +227,8 @@ mod tests {
         store
     }
 
-    /// Round-trips through the real OS keychain, under a throwaway account so
-    /// the user's own credential is never touched.
+    /// Round-trips through the development backend under a throwaway account,
+    /// so tests never touch the user's real OS keychain.
     #[test]
     fn stores_reads_and_deletes_a_credential() {
         let store = store("pat-round-trip");
@@ -159,6 +243,23 @@ mod tests {
         store.clear().expect("delete");
         assert_eq!(store.get().expect("read after delete"), None);
         store.clear().expect("delete is idempotent");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn development_credentials_are_owner_only() {
+        let store = store("private-permissions");
+        store
+            .set(&Credential::Pat {
+                token: "not-a-real-token".into(),
+            })
+            .expect("write private credential");
+        let Backend::DevelopmentFile(path) = &store.backend else {
+            panic!("tests must use the development credential backend");
+        };
+        let mode = fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        store.clear().expect("cleanup");
     }
 
     #[test]
@@ -197,11 +298,16 @@ mod tests {
     fn a_bare_string_from_an_older_version_reads_as_a_pat() {
         let store = store("legacy-pat");
         // Write the legacy format directly, bypassing `set`.
-        store
-            .entry()
-            .unwrap()
-            .set_password("ghp_legacy_plain_string")
-            .unwrap();
+        match &store.backend {
+            Backend::DevelopmentFile(path) => {
+                write_private(path, b"ghp_legacy_plain_string").unwrap()
+            }
+            Backend::Keychain => store
+                .entry()
+                .unwrap()
+                .set_password("ghp_legacy_plain_string")
+                .unwrap(),
+        }
 
         assert_eq!(
             store.get().expect("read"),
