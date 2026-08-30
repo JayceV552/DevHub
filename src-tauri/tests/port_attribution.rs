@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -53,7 +54,9 @@ async fn a_port_bound_by_a_grandchild_is_attributed_to_its_project() {
                 program: "sh".into(),
                 args: vec![
                     "-c".into(),
-                    format!("{python} -m http.server {TEST_PORT} --bind 127.0.0.1 & wait"),
+                    // `-u` because stdout is a pipe here, and a block-buffered
+                    // banner would make "no output" ambiguous when this fails.
+                    format!("{python} -u -m http.server {TEST_PORT} --bind 127.0.0.1 & wait"),
                 ],
                 kind: CommandKind::Service,
                 env: BTreeMap::new(),
@@ -78,7 +81,7 @@ async fn a_port_bound_by_a_grandchild_is_attributed_to_its_project() {
                  if these match, this test is no longer exercising the parent walk",
             );
         }
-        None => panic!("{}", diagnose(&mut ports, &processes, &run)),
+        None => panic!("{}", diagnose(&mut ports, &processes, &run, &python)),
     }
 
     processes.stop(&run.run_id).expect("stop");
@@ -121,7 +124,19 @@ fn diagnose(
     ports: &mut PortManager,
     processes: &Arc<ProcessManager<MockRuntime>>,
     run: &Run,
+    python: &str,
 ) -> String {
+    // Connecting proves whether anything is actually bound, independently of
+    // the socket enumeration under test — it separates "the server never came
+    // up" from "the server is up but PortManager cannot see it".
+    let reachable = match TcpStream::connect_timeout(
+        &SocketAddr::from(([127, 0, 0, 1], TEST_PORT)),
+        Duration::from_secs(1),
+    ) {
+        Ok(_) => "yes, something is listening".to_string(),
+        Err(e) => format!("no ({e})"),
+    };
+
     let status = processes
         .list_runs()
         .into_iter()
@@ -139,7 +154,7 @@ fn diagnose(
         Err(e) => format!("    <unavailable: {e}>"),
     };
 
-    let listening = match ports.list(&processes.running_pids(), true) {
+    let listening = match ports.list(&processes.running_pids(), false) {
         Ok(entries) if entries.is_empty() => "    <none>".to_string(),
         Ok(entries) => entries
             .iter()
@@ -151,10 +166,12 @@ fn diagnose(
 
     format!(
         "port {TEST_PORT} never showed up as managed after {POLL_BUDGET:?}\n\
+         \x20 interpreter: {python}\n\
          \x20 shell pid: {:?}\n\
          \x20 run status: {status}\n\
+         \x20 port reachable by connect(): {reachable}\n\
          \x20 child output:\n{output}\n\
-         \x20 listening ports:\n{listening}",
+         \x20 all listening ports (unfiltered):\n{listening}",
         run.pid,
     )
 }
