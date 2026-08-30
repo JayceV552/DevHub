@@ -10,7 +10,7 @@
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 16px;
 }
 
@@ -445,6 +445,171 @@
   width: 95vw;
 }
 
+.add-project-dialog {
+  width: min(680px, 95vw);
+}
+
+.add-project-source {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+}
+
+.add-project-source-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--brand-edge);
+  border-radius: var(--radius-sm);
+  background: var(--brand-dim);
+  color: var(--brand-text);
+}
+
+.add-project-source-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-project-source > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.add-project-source strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-project-source span {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-project-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.add-project-repository {
+  grid-column: 1 / -1;
+}
+
+.label-optional {
+  margin-left: 4px;
+  color: var(--text-faint);
+  font-size: 9.5px;
+  font-weight: 450;
+}
+
+.add-project-commands {
+  display: grid;
+  gap: 8px;
+}
+
+.add-project-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.add-project-section-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.add-project-section-head strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.add-project-section-head span {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.add-project-command-list {
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+}
+
+.add-project-command {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+}
+
+.add-project-command + .add-project-command {
+  border-top: 1px solid var(--border);
+}
+
+.add-project-command:hover {
+  background: var(--surface);
+}
+
+.add-project-command > span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.add-project-command strong {
+  width: 120px;
+  flex: none;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-project-command code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-project-empty {
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  font-size: 11px;
+  text-align: center;
+}
+
 .project-editor-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -489,13 +654,20 @@
 
 .command-editor-row {
   display: grid;
-  grid-template-columns: 120px 110px minmax(140px, 1fr) 96px 28px;
+  grid-template-columns: 140px 120px minmax(180px, 1fr) 28px;
   align-items: end;
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-inset);
+}
+
+@media (max-width: 640px) {
+  .add-project-fields { grid-template-columns: 1fr; }
+  .add-project-repository { grid-column: auto; }
+  .add-project-command > span { display: grid; gap: 2px; }
+  .add-project-command strong { width: auto; }
 }
 
 .command-editor-row .field {

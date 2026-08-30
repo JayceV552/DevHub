@@ -20,22 +20,31 @@ export function ColumnDialog({ column, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [repository, setRepository] = useState(column?.filters.repositories[0] ?? "");
+  const initialValue = column?.filters.users?.[0]
+    ? `https://github.com/${column.filters.users[0]}`
+    : column?.filters.repositories[0]
+      ? `https://github.com/${column.filters.repositories[0]}`
+      : "";
+  const [targetInput, setTargetInput] = useState(initialValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const slug = normalizeRepository(repository);
-    if (!slug) {
-      setError("Enter a repository as owner/repository or paste its GitHub URL.");
+    const target = normalizeGitHubTarget(targetInput);
+    if (!target) {
+      setError("Enter a GitHub profile URL or a repository as owner/repository.");
       return;
     }
 
     setBusy(true);
     setError(null);
     const filters = column?.filters ?? emptyFilters();
-    const nextFilters = { ...filters, repositories: [slug] };
-    const title = slug.split("/")[1];
+    const nextFilters = {
+      ...filters,
+      repositories: target.kind === "repository" ? [target.value] : [],
+      users: target.kind === "user" ? [target.value] : [],
+    };
+    const title = target.kind === "repository" ? target.value.split("/")[1] : `${target.value} activity`;
     try {
       if (column) await api.updateColumn(column.id, title, nextFilters);
       else await api.addColumn(title, nextFilters);
@@ -51,9 +60,9 @@ export function ColumnDialog({ column, onClose, onSaved }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="repository-dialog sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{column ? "Edit repository column" : "Add repository column"}</DialogTitle>
+          <DialogTitle>{column ? "Edit activity column" : "Add activity column"}</DialogTitle>
           <DialogDescription>
-            Paste a GitHub repository URL or enter its owner/repository name.
+            Follow a repository, or paste a user's GitHub homepage to see their public activity.
           </DialogDescription>
         </DialogHeader>
 
@@ -61,10 +70,10 @@ export function ColumnDialog({ column, onClose, onSaved }: {
           <Link2 aria-hidden="true" />
           <Input
             autoFocus
-            aria-label="GitHub repository"
-            value={repository}
-            placeholder="https://github.com/voidzero-dev/vite-plus"
-            onChange={(event) => setRepository(event.target.value)}
+            aria-label="GitHub repository or user profile"
+            value={targetInput}
+            placeholder="https://github.com/JayceV552/DevHub"
+            onChange={(event) => setTargetInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
@@ -73,12 +82,12 @@ export function ColumnDialog({ column, onClose, onSaved }: {
             }}
           />
         </div>
-        <p className="repository-example">Examples: <code>dayflow-js/calendar</code> or a complete GitHub URL.</p>
+        <p className="repository-example">Examples: <code>dayflow-js/calendar</code> or <code>https://github.com/JayceV552</code>.</p>
         {error ? <div className="repository-dialog-error">{error}</div> : null}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || !repository.trim()}>
+          <Button onClick={submit} disabled={busy || !targetInput.trim()}>
             {busy ? "Saving…" : column ? "Save" : "Add column"}
           </Button>
         </DialogFooter>
@@ -87,19 +96,32 @@ export function ColumnDialog({ column, onClose, onSaved }: {
   );
 }
 
-function normalizeRepository(input: string): string | null {
+type GitHubTarget = { kind: "repository" | "user"; value: string };
+
+function normalizeGitHubTarget(input: string): GitHubTarget | null {
   let value = input.trim().replace(/\.git$/i, "").replace(/\/+$/, "");
   if (!value) return null;
 
-  try {
-    const url = new URL(value.includes("://") ? value : `https://${value}`);
-    if (["github.com", "www.github.com"].includes(url.hostname.toLowerCase())) {
-      value = url.pathname.replace(/^\/+|\/+$/g, "").split("/").slice(0, 2).join("/");
+  if (/^(https?:\/\/)?(www\.)?github\.com\//i.test(value)) {
+    try {
+      const url = new URL(value.includes("://") ? value : `https://${value}`);
+      if (!["github.com", "www.github.com"].includes(url.hostname.toLowerCase())) return null;
+      value = url.pathname.replace(/^\/+|\/+$/g, "");
+    } catch {
+      return null;
     }
-  } catch {
-    // owner/repository is handled below.
   }
 
-  const match = value.match(/^([^\s/]+)\/([^\s/]+)$/);
-  return match ? `${match[1]}/${match[2]}` : null;
+  value = value.replace(/^@/, "");
+  const parts = value.split("/");
+  if (parts.length === 1 && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(parts[0])) {
+    return { kind: "user", value: parts[0] };
+  }
+  if (
+    parts.length === 2
+    && parts.every((part) => /^[A-Za-z0-9_.-]+$/.test(part))
+  ) {
+    return { kind: "repository", value: `${parts[0]}/${parts[1]}` };
+  }
+  return null;
 }

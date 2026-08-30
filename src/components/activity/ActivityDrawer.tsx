@@ -9,6 +9,7 @@ import {
   GitCommitHorizontal,
   GitFork,
   GitPullRequest,
+  Globe2,
   MessagesSquare,
   Package,
   Star,
@@ -40,6 +41,8 @@ export function ActivityDrawer({ item, saved, onToggleSave, onClose, onPrevious,
           ? Star
           : item.activityType === "fork"
             ? GitFork
+            : item.activityType === "publish"
+              ? Globe2
             : Package;
 
   useEffect(() => {

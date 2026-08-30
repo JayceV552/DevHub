@@ -12,9 +12,11 @@ const NEW_OAUTH_APP = "https://github.com/settings/applications/new";
 export function GitHubConnect({
   onReport,
   onConnected,
+  reconnect = false,
 }: {
   onReport: (err: unknown) => void;
   onConnected: () => void;
+  reconnect?: boolean;
 }) {
   const [showHelp, setShowHelp] = useState(false);
   const [showOwnApp, setShowOwnApp] = useState(false);
@@ -90,7 +92,10 @@ export function GitHubConnect({
       await navigator.clipboard.writeText(started.userCode).catch(() => {});
       await openUrl(started.verificationUri);
     } catch (err) {
-      setError(errorMessage(err));
+      const message = errorMessage(err);
+      setError(message.includes("does not recognise this client ID")
+        ? "Sign-in could not start. Check the Client ID or use a personal access token."
+        : message);
       setBusy(false);
     }
   };
@@ -121,10 +126,11 @@ export function GitHubConnect({
   return (
     <section className="connect-panel">
       <div className="connect-head">
-        <h3>Connect GitHub</h3>
+        <h3>{reconnect ? "Sign in to GitHub again" : "Connect GitHub"}</h3>
         <p>
-          Pull requests, issues, discussions and releases from your projects' repositories, in
-          one timeline.
+          {reconnect
+            ? "Your previous session is no longer valid. Sign in again to continue loading activity."
+            : "Pull requests, issues, discussions and releases from your projects' repositories, in one timeline."}
         </p>
       </div>
 

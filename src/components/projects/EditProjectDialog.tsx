@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { api, errorMessage } from "../../lib/api";
-import type { CommandKind, CommandSpec, ProjectView } from "../../lib/types";
+import type { CommandSpec, ProjectView } from "../../lib/types";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -13,14 +13,14 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface CommandDraft {
   key: string;
   name: string;
   program: string;
   args: string;
-  kind: CommandKind;
+  kind: CommandSpec["kind"];
+  autoKind: boolean;
   env?: Record<string, string>;
   cwd?: string | null;
 }
@@ -159,7 +159,18 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
               <div className="command-editor-row" key={command.key}>
                 <div className="field command-name-field">
                   <label>Script name</label>
-                  <Input type="text" value={command.name} placeholder="dev" onChange={(event) => patchCommand(command.key, { name: event.target.value })} />
+                  <Input
+                    type="text"
+                    value={command.name}
+                    placeholder="dev"
+                    onChange={(event) => {
+                      const nextName = event.target.value;
+                      patchCommand(command.key, {
+                        name: nextName,
+                        ...(command.autoKind ? { kind: guessCommandKind(nextName) } : {}),
+                      });
+                    }}
+                  />
                 </div>
                 <div className="field command-program-field">
                   <label>Program</label>
@@ -168,16 +179,6 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
                 <div className="field command-args-field">
                   <label>Arguments</label>
                   <Input type="text" value={command.args} placeholder="dev --host" onChange={(event) => patchCommand(command.key, { args: event.target.value })} />
-                </div>
-                <div className="field command-kind-field">
-                  <label>Kind</label>
-                  <Select value={command.kind} onValueChange={(value) => patchCommand(command.key, { kind: value as CommandKind })}>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="service">Service</SelectItem>
-                      <SelectItem value="task">Task</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <Button
                   variant="ghost"
@@ -209,13 +210,19 @@ function draftFrom(name: string, spec: CommandSpec): CommandDraft {
     program: spec.program,
     args: spec.args.map(formatArgument).join(" "),
     kind: spec.kind,
+    autoKind: false,
     env: spec.env,
     cwd: spec.cwd,
   };
 }
 
 function emptyDraft(): CommandDraft {
-  return { key: crypto.randomUUID(), name: "", program: "", args: "", kind: "service" };
+  return { key: crypto.randomUUID(), name: "", program: "", args: "", kind: "task", autoKind: true };
+}
+
+function guessCommandKind(name: string): CommandSpec["kind"] {
+  return ["dev", "start", "serve", "watch", "preview", "storybook", "server"]
+    .some((hint) => name.toLowerCase().includes(hint)) ? "service" : "task";
 }
 
 function formatArgument(value: string): string {

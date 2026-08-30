@@ -4,6 +4,7 @@ import { Folder, Plus, Search } from "lucide-react";
 import { AddProjectDialog } from "../components/projects/AddProjectDialog";
 import { EditProjectDialog } from "../components/projects/EditProjectDialog";
 import { ProjectCard } from "../components/projects/ProjectCard";
+import { PageHeader } from "../components/common/PageHeader";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useDevHub } from "../hooks/useDevHub";
@@ -62,15 +63,16 @@ export function ProjectsPage() {
 
   return (
     <>
-      <div className="page-header projects-header">
-        <div>
-          <h1 className="page-title">Projects</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        className="projects-header"
+        title="Projects"
+        subtitle={(
+          <>
             {projects.length} projects · <span className="text-success">{runningCount} running</span>
             {missingCount > 0 ? ` · ${missingCount} path missing` : ""}
-          </p>
-        </div>
-        <div className="page-toolbar projects-toolbar">
+          </>
+        )}
+        actions={<div className="page-toolbar projects-toolbar">
           <label className="toolbar-search" htmlFor="project-search">
             <Search aria-hidden="true" />
             <Input
@@ -84,8 +86,8 @@ export function ProjectsPage() {
             <kbd>⌘K</kbd>
           </label>
           <Button size="sm" onClick={() => setAdding(true)}><Plus />Add project</Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       {projects.length === 0 ? (
         <div className="empty-state">

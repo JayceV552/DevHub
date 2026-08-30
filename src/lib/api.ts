@@ -18,10 +18,15 @@ import type {
   Project,
   ProjectScan,
   ProjectView,
+  RepositoryIssuePage,
   Run,
   SavedItem,
   Settings,
+  SystemMemorySnapshot,
   TrackedRun,
+  TodoBoard,
+  TodoItem,
+  TodoStepInput,
 } from "./types";
 
 export const api = {
@@ -95,6 +100,22 @@ export const api = {
   deleteClipboardEntry: (id: string) => invoke<void>("delete_clipboard_entry", { id }),
   clearClipboardHistory: () => invoke<void>("clear_clipboard_history"),
   appMemory: () => invoke<AppMemory>("app_memory"),
+  systemMemory: () => invoke<SystemMemorySnapshot>("system_memory"),
+
+  todoBoard: () => invoke<TodoBoard>("todo_board"),
+  todoRepositoryIssues: (repository: string, cursor: string | null) =>
+    invoke<RepositoryIssuePage>("todo_repository_issues", { repository, cursor }),
+  setTodoRepositories: (repositories: string[]) =>
+    invoke<string[]>("set_todo_repositories", { repositories }),
+  addTodo: (title: string, steps: TodoStepInput[] = []) =>
+    invoke<TodoItem>("add_todo", { title, steps }),
+  updateTodo: (id: string, title: string, steps: TodoStepInput[]) =>
+    invoke<TodoItem>("update_todo", { id, title, steps }),
+  setTodoStep: (id: string, stepId: string, done: boolean) =>
+    invoke<TodoItem>("set_todo_step", { id, stepId, done }),
+  setTodoCompleted: (id: string, completed: boolean) =>
+    invoke<TodoItem>("set_todo_completed", { id, completed }),
+  deleteTodo: (id: string) => invoke<void>("delete_todo", { id }),
 
   getSettings: () => invoke<Settings>("get_settings"),
   updateSettings: (settings: Settings) => invoke<Settings>("update_settings", { settings }),

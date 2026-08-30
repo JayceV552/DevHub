@@ -5,11 +5,14 @@ import {
   GitCommitHorizontal,
   GitFork,
   GitPullRequest,
+  Globe2,
   MessageCircle,
   MessagesSquare,
   Package,
   Star,
 } from "lucide-react";
+import { memo } from "react";
+import type { CSSProperties } from "react";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -21,6 +24,7 @@ export function verb(item: ActivityItem): string {
   if (item.activityType === "fork") return "forked this repository";
   if (item.activityType === "commit") return "pushed a commit";
   if (item.activityType === "release") return "published a release";
+  if (item.activityType === "publish") return "made this repository public";
   if (item.activityType === "pullRequest") return `${item.state} a pull request`;
   if (item.activityType === "issue") return `${item.state} an issue`;
   return "updated a discussion";
@@ -35,10 +39,13 @@ export function relativeTime(date: Date): string {
   return `${Math.floor(seconds / 604_800)}w`;
 }
 
-export function ActivityCard({ item, saved, onToggleSave, onReport }: {
+// Memoised: a single save toggle re-renders the whole board, and every column
+// re-renders on each keystroke in its search box. Both props below are stable
+// identities, so the ~20 cards per column stay untouched.
+export const ActivityCard = memo(function ActivityCard({ item, saved, onToggleSave, onReport }: {
   item: ActivityItem;
   saved: boolean;
-  onToggleSave: () => void;
+  onToggleSave: (item: ActivityItem) => void;
   onReport: (err: unknown) => void;
 }) {
   const TypeIcon = activityIcon(item);
@@ -61,7 +68,7 @@ export function ActivityCard({ item, saved, onToggleSave, onReport }: {
     >
       <div className="activity-feed-actor">
         {item.actorAvatar ? (
-          <img src={item.actorAvatar} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => event.currentTarget.remove()} />
+          <img src={item.actorAvatar} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
         ) : <span className="activity-actor-fallback" />}
         <span><strong>{item.actor ?? "GitHub"}</strong> {item.action ?? verb(item)}</span>
         <time>{relativeTime(new Date(item.timestamp))}</time>
@@ -70,7 +77,7 @@ export function ActivityCard({ item, saved, onToggleSave, onReport }: {
       <div className="activity-feed-target">
         <div className="activity-repository-avatar" aria-hidden="true">
           <TypeIcon />
-          <img src={repositoryAvatar} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => event.currentTarget.remove()} />
+          <img src={repositoryAvatar} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
           <span><TypeIcon /></span>
         </div>
 
@@ -81,9 +88,17 @@ export function ActivityCard({ item, saved, onToggleSave, onReport }: {
             {item.number !== null ? <span className="mono">#{item.number}</span> : null}
           </div>
           <div className="activity-card-meta">
-            <Badge variant="secondary" className={`activity-state-badge ${item.state}`}>{item.state}</Badge>
+            {item.activityType !== "commit" ? <Badge variant="secondary" className={`activity-state-badge ${item.state}`}>{item.state}</Badge> : null}
+            {item.labels?.slice(0, 2).map((label) => (
+              <span
+                className="activity-mini-label"
+                key={label.name}
+                style={labelStyle(label.color)}
+              >
+                {label.name}
+              </span>
+            ))}
             {item.commentCount ? <span className="activity-comments"><MessageCircle /> {item.commentCount}</span> : null}
-            {item.labels?.slice(0, 2).map((label) => <span className="activity-mini-label" key={label.name}>{label.name}</span>)}
           </div>
         </div>
 
@@ -95,7 +110,7 @@ export function ActivityCard({ item, saved, onToggleSave, onReport }: {
               className={`save-toggle ${saved ? "is-saved" : ""}`}
               onClick={(event) => {
                 event.stopPropagation();
-                onToggleSave();
+                onToggleSave(item);
               }}
               aria-label={saved ? "Remove from saved" : "Save for later"}
               aria-pressed={saved}
@@ -108,7 +123,7 @@ export function ActivityCard({ item, saved, onToggleSave, onReport }: {
       </div>
     </article>
   );
-}
+});
 
 function activityIcon(item: ActivityItem) {
   if (item.activityType === "commit") return GitCommitHorizontal;
@@ -117,5 +132,20 @@ function activityIcon(item: ActivityItem) {
   if (item.activityType === "discussion") return MessagesSquare;
   if (item.activityType === "star") return Star;
   if (item.activityType === "fork") return GitFork;
+  if (item.activityType === "publish") return Globe2;
   return Package;
+}
+
+function safeLabelColor(color: string): string {
+  return /^#?[0-9a-f]{6}$/i.test(color) ? `#${color.replace(/^#/, "")}` : "#6e7681";
+}
+
+function labelStyle(color: string): CSSProperties {
+  const background = safeLabelColor(color);
+  const value = background.slice(1);
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  const foreground = (red * 299 + green * 587 + blue * 114) / 1000 > 155 ? "#111827" : "#ffffff";
+  return { "--label-color": background, "--label-text": foreground } as CSSProperties;
 }

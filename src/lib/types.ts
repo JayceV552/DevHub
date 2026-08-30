@@ -94,7 +94,7 @@ export interface ProcessDescription {
 
 export type Theme = "system" | "light" | "dark";
 
-export type ActivityType = "commit" | "pullRequest" | "issue" | "discussion" | "release" | "star" | "fork";
+export type ActivityType = "commit" | "pullRequest" | "issue" | "discussion" | "release" | "star" | "fork" | "publish";
 export type ActivityState = "open" | "merged" | "closed" | "published";
 
 export interface ActivityItem {
@@ -145,6 +145,7 @@ export interface GitHubStatus {
 
 export interface ColumnFilters {
   repositories: string[];
+  users: string[];
   types: ActivityType[];
   states: ActivityState[];
   query?: string | null;
@@ -174,6 +175,7 @@ export interface SavedItem extends ActivityItem {
 
 export const emptyFilters = (): ColumnFilters => ({
   repositories: [],
+  users: [],
   types: [],
   states: [],
   query: null,
@@ -215,6 +217,59 @@ export interface ClipboardSnapshot {
 export interface AppMemory {
   residentBytes: number;
   processCount: number;
+}
+
+export interface MemoryConsumer {
+  name: string;
+  residentBytes: number;
+  processCount: number;
+}
+
+export interface SystemMemorySnapshot {
+  totalBytes: number;
+  usedBytes: number;
+  consumers: MemoryConsumer[];
+}
+
+export interface TodoStep {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+// A checklist row on its way back to Rust: rows typed just now have no id yet.
+export interface TodoStepInput {
+  id?: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  steps: TodoStep[];
+  completed: boolean;
+  createdAt: string;
+}
+
+export interface TodoBoard {
+  repositories: string[];
+  todos: TodoItem[];
+  issueGroups: RepositoryIssueGroup[];
+  issueError: string | null;
+}
+
+export interface RepositoryIssueGroup {
+  repository: string;
+  totalCount: number;
+  issues: ActivityItem[];
+  endCursor: string | null;
+  hasNextPage: boolean;
+}
+
+export interface RepositoryIssuePage extends RepositoryIssueGroup {
+  endCursor: string | null;
+  hasNextPage: boolean;
 }
 
 export const isRunning = (run: Run) => run.status === "running";

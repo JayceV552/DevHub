@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { FolderOpen } from "lucide-react";
 
 import { api, errorMessage } from "../../lib/api";
 import type { CommandSpec, ProjectScan } from "../../lib/types";
@@ -37,7 +38,7 @@ export function AddProjectDialog({
     try {
       const picked = await open({ directory: true, multiple: false, title: "Select project folder" });
       if (typeof picked !== "string") {
-        onClose();
+        if (!scan) onClose();
         return;
       }
 
@@ -51,7 +52,7 @@ export function AddProjectDialog({
     } finally {
       setBusy(false);
     }
-  }, [onClose]);
+  }, [onClose, scan]);
 
   useEffect(() => {
     if (pickerStarted.current) return;
@@ -95,7 +96,7 @@ export function AddProjectDialog({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="add-project-dialog sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add project</DialogTitle>
           <DialogDescription>
@@ -106,7 +107,7 @@ export function AddProjectDialog({
         </DialogHeader>
 
         <div className="dialog-body">
-          {error ? <div style={{ color: "var(--danger)" }}>{error}</div> : null}
+          {error ? <div className="dialog-error">{error}</div> : null}
 
           {!scan ? (
             <Button onClick={() => void pickFolder()} disabled={busy}>
@@ -114,63 +115,87 @@ export function AddProjectDialog({
             </Button>
           ) : (
             <>
-              <div className="field">
-                <label htmlFor="project-name">Name</label>
-                <Input id="project-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-                <span className="hint">{scan.path}</span>
+              <div className="add-project-source">
+                <div className="add-project-source-icon"><FolderOpen /></div>
+                <div>
+                  <strong>{scan.name}</strong>
+                  <span>{scan.path}</span>
+                </div>
+                <Button variant="ghost" size="xs" onClick={() => void pickFolder()} disabled={busy}>
+                  Change folder
+                </Button>
               </div>
 
-              <div className="field">
-                <label htmlFor="project-repo">GitHub repository</label>
-                <Input
-                  id="project-repo"
-                  type="text"
-                  value={repository}
-                  onChange={(e) => setRepository(e.target.value)}
-                  placeholder="owner/repo"
-                />
-                {scan.branch ? <span className="hint">on branch {scan.branch}</span> : null}
+              <div className="add-project-fields">
+                <div className="field">
+                  <label htmlFor="project-name">Project name</label>
+                  <Input id="project-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="project-group">Workspace group <span className="label-optional">Optional</span></label>
+                  <Input
+                    id="project-group"
+                    type="text"
+                    value={group}
+                    onChange={(e) => setGroup(e.target.value)}
+                    placeholder="e.g. DayFlow"
+                  />
+                </div>
+                <div className="field add-project-repository">
+                  <label htmlFor="project-repo">GitHub repository <span className="label-optional">Optional</span></label>
+                  <Input
+                    id="project-repo"
+                    type="text"
+                    value={repository}
+                    onChange={(e) => setRepository(e.target.value)}
+                    placeholder="owner/repository"
+                  />
+                  {scan.branch ? <span className="hint">Current branch: {scan.branch}</span> : null}
+                </div>
               </div>
 
-              <div className="field">
-                <label htmlFor="project-group">Workspace group</label>
-                <Input
-                  id="project-group"
-                  type="text"
-                  value={group}
-                  onChange={(e) => setGroup(e.target.value)}
-                  placeholder="Optional — e.g. DayFlow"
-                />
-                <span className="hint">Projects in a group can be started together.</span>
-              </div>
-
-              <div className="field">
-                <label>
-                  Detected commands
-                  {scan.detectedFrom.length > 0 ? ` — from ${scan.detectedFrom.join(", ")}` : ""}
-                </label>
+              <section className="add-project-commands">
+                <div className="add-project-section-head">
+                  <div>
+                    <strong>Commands</strong>
+                    <span>
+                      {selected.size} of {Object.keys(scan.commands).length} selected
+                      {scan.detectedFrom.length > 0 ? ` · ${scan.detectedFrom.join(", ")}` : ""}
+                    </span>
+                  </div>
+                  {Object.keys(scan.commands).length > 0 ? (
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => setSelected(selected.size === Object.keys(scan.commands).length
+                        ? new Set()
+                        : new Set(Object.keys(scan.commands)))}
+                    >
+                      {selected.size === Object.keys(scan.commands).length ? "Clear all" : "Select all"}
+                    </button>
+                  ) : null}
+                </div>
                 {Object.keys(scan.commands).length === 0 ? (
-                  <span className="hint">
+                  <div className="add-project-empty">
                     Nothing detected. You can add commands by hand in config.toml.
-                  </span>
+                  </div>
                 ) : (
-                  <div className="check-list">
+                  <div className="add-project-command-list">
                     {Object.entries(scan.commands).map(([commandId, spec]) => (
-                      <label className="check-row" key={commandId}>
+                      <label className="add-project-command" key={commandId}>
                         <Checkbox
                           checked={selected.has(commandId)}
                           onCheckedChange={() => toggle(commandId)}
                         />
-                        <span className="name">{commandId}</span>
-                        <span className={`tag ${spec.kind}`}>{spec.kind}</span>
-                        <span className="cmd">
-                          {spec.program} {spec.args.join(" ")}
+                        <span>
+                          <strong>{commandId}</strong>
+                          <code>{spec.program} {spec.args.join(" ")}</code>
                         </span>
                       </label>
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             </>
           )}
         </div>
