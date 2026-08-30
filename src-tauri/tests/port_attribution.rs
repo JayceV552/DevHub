@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::net::{SocketAddr, TcpStream};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -54,9 +54,18 @@ async fn a_port_bound_by_a_grandchild_is_attributed_to_its_project() {
                 program: "sh".into(),
                 args: vec![
                     "-c".into(),
-                    // `-u` because stdout is a pipe here, and a block-buffered
-                    // banner would make "no output" ambiguous when this fails.
-                    format!("{python} -u -m http.server {TEST_PORT} --bind 127.0.0.1 & wait"),
+                    // GitHub's macOS runners can spend about 35 seconds in the
+                    // `socket.getfqdn()` call made by `http.server`, after bind
+                    // but before listen. This test only needs a grandchild that
+                    // owns a listening socket, so avoid the HTTP server entirely.
+                    format!(
+                        "{python} -u -c 'import socket,time; \
+                         s=socket.socket(); \
+                         s.bind((\"127.0.0.1\", {TEST_PORT})); \
+                         s.listen(); \
+                         print(\"ready\", flush=True); \
+                         time.sleep(120)' & wait"
+                    ),
                 ],
                 kind: CommandKind::Service,
                 env: BTreeMap::new(),
