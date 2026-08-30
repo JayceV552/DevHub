@@ -2,6 +2,7 @@
   "name": "devhub",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.4",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
@@ -13,7 +14,8 @@
     "app": "tauri dev",
     "app:build": "tauri build",
     "release:check": "bash scripts/ci-local-runner.sh",
-    "release:dry-run": "bash scripts/ci-local-runner.sh --bundle"
+    "release:dry-run": "bash scripts/ci-local-runner.sh --bundle",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
