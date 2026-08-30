@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { OrphanBanner } from "./components/common/OrphanBanner";
+import { useWindowDragHandle } from "./components/common/PageHeader";
 import { TerminalPanel } from "./components/terminal/TerminalPanel";
 import { Button } from "./components/ui/button";
 import { formatDuration } from "./components/common/StatusDot";
@@ -78,6 +79,7 @@ function Shell() {
   const [, setClock] = useState(() => Date.now());
   const [clipboardCount, setClipboardCount] = useState(0);
   const { projects, runs, ports, error, dismissError, openTab, setFocusedProject } = useDevHub();
+  const sidebarWindowDragHandle = useWindowDragHandle();
 
   const counts: Record<Page, string | null> = {
     dashboard: null,
@@ -115,7 +117,7 @@ function Shell() {
   return (
     <div className={`app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
       <nav className="sidebar">
-        <div className="sidebar-brand">
+        <div className="sidebar-brand" {...sidebarWindowDragHandle}>
           <span className="brand-mark"><DevHubLogo aria-hidden="true" /></span>
           <span className="brand-copy">
             <strong>DevHub</strong>

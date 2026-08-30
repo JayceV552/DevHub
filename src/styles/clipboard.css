@@ -54,10 +54,10 @@
 .clipboard-filter-list [data-slot="tabs-trigger"][data-state="active"],
 .clipboard-filter-list [data-slot="tabs-trigger"][data-active],
 .clipboard-filter-list [data-slot="tabs-trigger"][aria-selected="true"] {
-  border-color: var(--brand);
+  border-color: var(--border);
   background: var(--bg-card);
-  color: var(--brand-text);
-  box-shadow: 0 0 0 1px var(--brand-edge), var(--shadow-sm);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
 .clipboard-filter-list [data-slot="tabs-trigger"]:focus-visible {
@@ -242,7 +242,6 @@
 .clipboard-card.is-code > pre {
   max-height: 260px;
   overflow: auto;
-  border-left: 3px solid var(--brand);
   background: var(--ansi-black);
   color: #f8fafc;
   tab-size: 2;

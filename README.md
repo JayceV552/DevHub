@@ -19,46 +19,60 @@
 
 DevHub answers a simple question: **what is happening in my local development environment right now?**
 
-- Add a project and run scripts detected from `package.json` or `Cargo.toml`.
-- Start, stop, and restart commands while viewing live, ANSI-colored output.
-- See every listening TCP port and which project or process owns it.
-- Search and reuse clipboard history across text, images, files, code, and links.
-- Follow pull requests, issues, discussions, releases, and pushes in a customizable GitHub board.
-- Group projects into workspaces and recover processes left behind after an unexpected exit.
+Add a project and run scripts detected from `package.json` or `Cargo.toml`.<br>
+Start, stop, and restart commands while viewing live ANSI colored output.<br>
+See every listening TCP port and which project or process owns it.<br>
+Search and reuse clipboard history across text, images, files, code, and links.<br>
+Follow pull requests, issues, discussions, releases, and pushes in a customizable GitHub board.<br>
+Keep personal todos beside repository issues in a focused Todo Board.<br>
+Group projects into workspaces and recover processes left behind after an unexpected exit.
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="public/devhub-projects.jpg" alt="DevHub project manager and command output">
-      <br><sub><b>Projects</b> — run commands and follow their output.</sub>
-    </td>
-    <td width="50%">
-      <img src="public/devhub-ports.jpg" alt="DevHub port inspector">
-      <br><sub><b>Ports</b> — find what is listening and who owns it.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="public/devhub-clipboard.jpg" alt="DevHub clipboard history">
-      <br><sub><b>Clipboard</b> — search text, images, files, code, and links.</sub>
-    </td>
-    <td width="50%">
-      <img src="public/devhub-github.jpg" alt="DevHub GitHub activity board">
-      <br><sub><b>GitHub</b> — organize repository activity into focused columns.</sub>
-    </td>
-  </tr>
-</table>
+### Todo Board
+
+Keep personal tasks and GitHub issues together on a focused pinboard.
+
+![DevHub Todo Board](public/devhub-overview.jpg)
+
+### Issue Folder
+
+Open a repository folder to browse its latest issues without leaving the board.
+
+![DevHub Issue Folder](public/devhub-issue-folder.jpg)
+
+### Projects
+
+Run project commands and follow their output.
+
+![DevHub project manager and command output](public/devhub-projects.jpg)
+
+### Ports
+
+Find listening ports and identify the project or process that owns each one.
+
+![DevHub port inspector](public/devhub-ports.jpg)
+
+### Clipboard
+
+Search clipboard history across text, images, files, code, and links.
+
+![DevHub clipboard history](public/devhub-clipboard.jpg)
+
+### GitHub Activity
+
+Organize repository activity into focused and customizable columns.
+
+![DevHub GitHub activity board](public/devhub-github.jpg)
 
 ## Getting started
 
 ### Requirements
 
-- Node.js 20+
-- [pnpm](https://pnpm.io/)
-- Rust 1.95+
-- The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
+Node.js 20+<br>
+[pnpm](https://pnpm.io/)<br>
+Rust 1.95+<br>
+The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
 ### Run locally
 

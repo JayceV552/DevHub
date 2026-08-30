@@ -4,12 +4,15 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
   ExternalLink,
   RefreshCw,
   Search,
 } from "lucide-react";
 
 import { Button } from "../components/ui/button";
+import { PageHeader } from "../components/common/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -28,23 +31,29 @@ export function PortsPage() {
   const [process, setProcess] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [showEditorHelpers, setShowEditorHelpers] = useState(false);
   const [pendingKill, setPendingKill] = useState<{ entry: PortEntry; description: ProcessDescription | null } | null>(null);
 
-  const managedCount = ports.filter((entry) => entry.ownership === "managed").length;
-  const externalCount = ports.length - managedCount;
+  const editorHelperCount = ports.filter(isEditorHelper).length;
+  const displayedPorts = useMemo(
+    () => showEditorHelpers ? ports : ports.filter((entry) => !isEditorHelper(entry)),
+    [ports, showEditorHelpers],
+  );
+  const managedCount = displayedPorts.filter((entry) => entry.ownership === "managed").length;
+  const externalCount = displayedPorts.length - managedCount;
 
   const processCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const entry of ports) {
+    for (const entry of displayedPorts) {
       const name = entry.processName ?? "unknown";
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
     return [...counts.entries()].sort(([nameA, countA], [nameB, countB]) => countB - countA || nameA.localeCompare(nameB));
-  }, [ports]);
+  }, [displayedPorts]);
 
   const visible = useMemo(() => {
     const needle = query.trim().replace(/^:/, "").toLowerCase();
-    const filtered = ports.filter((entry) => {
+    const filtered = displayedPorts.filter((entry) => {
       if (process !== null && (entry.processName ?? "unknown") !== process) return false;
       if (!needle) return true;
       return [String(entry.port), entry.processName, entry.projectName, entry.commandId, entry.pid !== null ? String(entry.pid) : null]
@@ -53,7 +62,7 @@ export function PortsPage() {
     });
 
     return filtered.sort((a, b) => a.port - b.port);
-  }, [ports, process, query]);
+  }, [displayedPorts, process, query]);
 
   const managed = visible.filter((entry) => entry.ownership === "managed");
   const external = visible.filter((entry) => entry.ownership === "external");
@@ -100,19 +109,29 @@ export function PortsPage() {
 
   return (
     <>
-      <div className="page-header ports-page-header">
-        <div>
-          <h1 className="page-title">Ports</h1>
-          <p className="page-subtitle">{ports.length} listening · <span className="text-success">{managedCount} started by DevHub</span> · {externalCount} external</p>
-        </div>
-        <div className="page-toolbar ports-toolbar">
+      <PageHeader
+        className="ports-page-header"
+        title="Ports"
+        subtitle={(
+          <>
+            {displayedPorts.length} listening · <span className="text-success">{managedCount} started by DevHub</span> · {externalCount} external
+            {!showEditorHelpers && editorHelperCount > 0 ? ` · ${editorHelperCount} editor helper ports hidden` : ""}
+          </>
+        )}
+        actions={<div className="page-toolbar ports-toolbar">
           <label className="toolbar-search" htmlFor="port-search">
             <Search aria-hidden="true" />
             <Input id="port-search" type="search" value={query} placeholder=":5173 / node / dayflow…" onChange={(event) => setQuery(event.target.value)} />
           </label>
+          {editorHelperCount > 0 ? (
+            <Button variant="outline" size="sm" onClick={() => { setShowEditorHelpers((value) => !value); setProcess(null); }}>
+              {showEditorHelpers ? <EyeOff /> : <Eye />}
+              {showEditorHelpers ? "Hide helpers" : `Show helpers (${editorHelperCount})`}
+            </Button>
+          ) : null}
           <Button variant="outline" size="sm" onClick={() => refreshPorts()}><RefreshCw />Refresh</Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       {processCounts.length > 1 ? (
         <div className={`chip-row-container ${filterExpanded ? "is-expanded" : ""}`}>
@@ -143,8 +162,11 @@ export function PortsPage() {
         </div>
       ) : null}
 
-      {ports.length === 0 ? (
-        <div className="empty-state"><h3>Nothing listening</h3><p>Start a development server and its TCP port will appear here.</p></div>
+      {displayedPorts.length === 0 ? (
+        <div className="empty-state">
+          <h3>{editorHelperCount > 0 ? "Only editor helpers are listening" : "Nothing listening"}</h3>
+          <p>{editorHelperCount > 0 ? "Use Show helpers to inspect them." : "Start a development server and its TCP port will appear here."}</p>
+        </div>
       ) : visible.length === 0 ? (
         <div className="empty-state"><h3>No matching ports</h3><p>Try a different port, process or project filter.</p></div>
       ) : (
@@ -168,7 +190,11 @@ export function PortsPage() {
               <span className="dialog-danger-icon"><AlertTriangle /></span>
               <div>
                 <DialogTitle>End this process?</DialogTitle>
-                <DialogDescription>It was not started by DevHub and will not restart automatically.</DialogDescription>
+                <DialogDescription>
+                  {isEditorHelper(pendingKill.entry)
+                    ? "This is an editor helper. Ending it can interrupt code intelligence, and its parent app may restart it."
+                    : "It was not started by DevHub. Its parent application may restart it automatically."}
+                </DialogDescription>
               </div>
             </DialogHeader>
             <div className="dialog-body">
@@ -188,6 +214,11 @@ export function PortsPage() {
       </Dialog>
     </>
   );
+}
+
+function isEditorHelper(entry: PortEntry): boolean {
+  const name = entry.processName?.toLowerCase().replace(/[ -]/g, "_") ?? "";
+  return name === "language_server" || name.endsWith("_language_server");
 }
 
 function PortsGroup({ ownership, entries, onOpen, onStop, onStopAll }: {

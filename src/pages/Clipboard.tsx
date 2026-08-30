@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Code2, Copy, Eraser, File as FileIcon, Image as ImageIcon, Link2, Search, Trash2, Type } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+import { PageHeader } from "../components/common/PageHeader";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
@@ -51,8 +52,8 @@ export function ClipboardPage() {
   const groups = useMemo(() => [
     { id: "text", title: "Text", icon: Type, entries: visible.filter((entry) => entry.kind === "text") },
     { id: "image", title: "Images", icon: ImageIcon, entries: visible.filter((entry) => entry.kind === "image") },
-    { id: "file", title: "Files", icon: FileIcon, entries: visible.filter((entry) => entry.kind === "file") },
     { id: "code", title: "Code & links", icon: Code2, entries: visible.filter((entry) => entry.kind === "code" || entry.kind === "link") },
+    { id: "file", title: "Files", icon: FileIcon, entries: visible.filter((entry) => entry.kind === "file") },
   ].filter((group) => filter === "all" || group.id === filter), [filter, visible]);
 
   const copy = async (entry: ClipboardEntry) => {
@@ -110,29 +111,30 @@ export function ClipboardPage() {
 
   return (
     <div className="clipboard-page">
-      <div className="page-header clipboard-header">
-        <div>
-          <h1 className="page-title">Clipboard</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        className="clipboard-header"
+        title="Clipboard"
+        subtitle={(
+          <>
             {snapshot.entries.length} items · kept {snapshot.retentionDays} days · {formatBytes(snapshot.totalBytes)} of {formatBytes(snapshot.capBytes)}
-          </p>
-        </div>
-        <div className="clipboard-toolbar">
+          </>
+        )}
+        actions={<div className="clipboard-toolbar">
           <label className="toolbar-search" htmlFor="clipboard-search">
             <Search aria-hidden="true" />
             <Input id="clipboard-search" type="search" value={query} placeholder="Search clipboard…" onChange={(event) => setQuery(event.target.value)} />
           </label>
           <Button variant="outline" size="sm" onClick={clear} disabled={snapshot.entries.length === 0}><Eraser />Clear</Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       <Tabs className="clipboard-filter-tabs" value={filter} onValueChange={(value) => setFilter(value as ClipboardFilter)}>
         <TabsList className="clipboard-filter-list" aria-label="Filter clipboard history">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="text">Text</TabsTrigger>
           <TabsTrigger value="image">Images</TabsTrigger>
-          <TabsTrigger value="file">Files</TabsTrigger>
           <TabsTrigger className="clipboard-code-tab" value="code">Code & links</TabsTrigger>
+          <TabsTrigger value="file">Files</TabsTrigger>
         </TabsList>
       </Tabs>
 

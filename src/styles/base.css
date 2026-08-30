@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ui-spinner {
+  animation: ui-spin 0.72s linear infinite;
+}
+
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {

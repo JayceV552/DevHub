@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckCircle2, Clipboard, FileText, FolderSearch, Network, Palette, TerminalSquare } from "lucide-react";
 
+import { PageHeader } from "../components/common/PageHeader";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -60,13 +61,12 @@ export function SettingsPage() {
 
   return (
     <div className="settings-page">
-      <div className="page-header settings-header">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Application preferences and local runtime configuration.</p>
-        </div>
-        <div className={`settings-save-state ${saved ? "is-visible" : ""}`}><CheckCircle2 />Saved</div>
-      </div>
+      <PageHeader
+        className="settings-header"
+        title="Settings"
+        subtitle="Application preferences and local runtime configuration."
+        actions={<div className={`settings-save-state ${saved ? "is-visible" : ""}`}><CheckCircle2 />Saved</div>}
+      />
 
       <div className="settings-grid">
         <SettingsCard icon={Palette} title="Appearance" description="Choose how DevHub looks on this Mac.">

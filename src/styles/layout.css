@@ -19,6 +19,8 @@
   overflow: hidden;
   position: relative;
   z-index: 10;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .sidebar-brand {
@@ -31,6 +33,7 @@
   gap: 8px;
   min-width: 0;
   overflow: hidden;
+  cursor: default;
 }
 
 .sidebar-brand .brand-mark {
@@ -330,6 +333,22 @@
   gap: 16px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.page-header input,
+.page-header textarea,
+.page-header [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+.page-heading {
+  min-width: 0;
+  flex: 1 1 220px;
 }
 
 .page-title {
