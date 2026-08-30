@@ -82,5 +82,10 @@ jobs:
       - name: Cargo check
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
+      # The integration tests are Unix-only by construction (`sh -c`, `sleep`,
+      # `/tmp`, `libc::kill`), so they are not built on Windows — `cargo check`
+      # above is what covers the `cfg(windows)` branches there.
+      # Same entry point as `pnpm test` locally.
       - name: Cargo test
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        if: runner.os != 'Windows'
+        run: pnpm test

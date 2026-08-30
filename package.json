@@ -13,6 +13,8 @@
     "tauri": "tauri",
     "app": "tauri dev",
     "app:build": "tauri build",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:file": "cargo test --manifest-path src-tauri/Cargo.toml --test",
     "release:check": "bash scripts/ci-local-runner.sh",
     "release:dry-run": "bash scripts/ci-local-runner.sh --bundle",
     "release": "bash scripts/release.sh"

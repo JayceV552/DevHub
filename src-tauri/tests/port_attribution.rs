@@ -4,11 +4,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use devhub_lib::testing::{
-    CommandKind, CommandSpec, PortManager, PortOwnership, ProcessManager, RunRegistry,
+    CommandKind, CommandSpec, PortManager, PortOwnership, ProcessManager, Run, RunRegistry,
 };
 use tauri::test::MockRuntime;
 
 const TEST_PORT: u16 = 47_311;
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
+/// CI runners are slow enough to spawn `python3 -m http.server` that the
+/// original 5s budget was not always enough for the listener to appear.
+const POLL_BUDGET: Duration = Duration::from_secs(15);
 
 fn manager() -> Arc<ProcessManager<MockRuntime>> {
     let app = tauri::test::mock_app();
@@ -74,13 +78,13 @@ async fn a_port_bound_by_a_grandchild_is_attributed_to_its_project() {
                  if these match, this test is no longer exercising the parent walk",
             );
         }
-        None => panic!("port {TEST_PORT} never showed up as managed"),
+        None => panic!("{}", diagnose(&mut ports, &processes, &run)),
     }
 
     processes.stop(&run.run_id).expect("stop");
 
-    for _ in 0..100 {
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    for _ in 0..poll_attempts() {
+        tokio::time::sleep(POLL_INTERVAL).await;
         let listed = ports
             .list(&processes.running_pids(), true)
             .expect("list ports");
@@ -95,8 +99,8 @@ async fn wait_for_port(
     ports: &mut PortManager,
     processes: &Arc<ProcessManager<MockRuntime>>,
 ) -> Option<devhub_lib::testing::PortEntry> {
-    for _ in 0..100 {
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    for _ in 0..poll_attempts() {
+        tokio::time::sleep(POLL_INTERVAL).await;
         let listed = ports
             .list(&processes.running_pids(), true)
             .expect("list ports");
@@ -105,6 +109,54 @@ async fn wait_for_port(
         }
     }
     None
+}
+
+fn poll_attempts() -> u32 {
+    (POLL_BUDGET.as_millis() / POLL_INTERVAL.as_millis()) as u32
+}
+
+/// This has only ever failed on CI, so say what the poll actually saw: whether
+/// the run died, what the child printed, and which listeners were visible.
+fn diagnose(
+    ports: &mut PortManager,
+    processes: &Arc<ProcessManager<MockRuntime>>,
+    run: &Run,
+) -> String {
+    let status = processes
+        .list_runs()
+        .into_iter()
+        .find(|r| r.run_id == run.run_id)
+        .map(|r| format!("{:?}, exit code {:?}", r.status, r.exit_code))
+        .unwrap_or_else(|| "run is no longer tracked".to_string());
+
+    let output = match processes.get_output(&run.run_id) {
+        Ok(lines) if lines.is_empty() => "    <no output>".to_string(),
+        Ok(lines) => lines
+            .iter()
+            .map(|line| format!("    [{:?}] {}", line.stream, line.text))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        Err(e) => format!("    <unavailable: {e}>"),
+    };
+
+    let listening = match ports.list(&processes.running_pids(), true) {
+        Ok(entries) if entries.is_empty() => "    <none>".to_string(),
+        Ok(entries) => entries
+            .iter()
+            .map(|e| format!("    {} pid={:?} {:?}", e.port, e.pid, e.ownership))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        Err(e) => format!("    <unavailable: {e}>"),
+    };
+
+    format!(
+        "port {TEST_PORT} never showed up as managed after {POLL_BUDGET:?}\n\
+         \x20 shell pid: {:?}\n\
+         \x20 run status: {status}\n\
+         \x20 child output:\n{output}\n\
+         \x20 listening ports:\n{listening}",
+        run.pid,
+    )
 }
 
 fn which_python() -> Option<String> {

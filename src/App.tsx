@@ -9,7 +9,6 @@ import {
   Settings,
 } from "lucide-react";
 
-import { OrphanBanner } from "./components/common/OrphanBanner";
 import { useWindowDragHandle } from "./components/common/PageHeader";
 import { TerminalPanel } from "./components/terminal/TerminalPanel";
 import { Button } from "./components/ui/button";
@@ -193,8 +192,6 @@ function Shell() {
             </Button>
           </div>
         ) : null}
-
-        <OrphanBanner />
 
         <div className={`page ${page === "activity" || page === "clipboard" ? "is-board" : ""}`}>
           {page === "dashboard" ? <DashboardPage onNavigate={(p) => setPage(p as Page)} /> : null}
