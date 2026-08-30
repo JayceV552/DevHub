@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "app": "tauri dev",
-    "app:build": "tauri build"
+    "app:build": "tauri build",
+    "release:check": "bash scripts/ci-local-runner.sh",
+    "release:dry-run": "bash scripts/ci-local-runner.sh --bundle"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

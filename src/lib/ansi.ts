@@ -69,23 +69,26 @@ function applySgr(style: Style, params: number[]): void {
 }
 
 const ESCAPE = /\x1b(?:\[([0-9;?]*)([A-Za-z])|\][^\x07\x1b]*(?:\x07|\x1b\\)|[()][A-Za-z0-9]|[A-Za-z=><])/g;
+const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
 
 export function parseAnsi(input: string): AnsiSpan[] {
-  const lastCr = input.lastIndexOf("\r");
-  const line = lastCr === -1 ? input : input.slice(lastCr + 1);
+  const trimmedCr = input.replace(/\r+$/, "");
+  const lastCr = trimmedCr.lastIndexOf("\r");
+  const line = lastCr === -1 ? trimmedCr : trimmedCr.slice(lastCr + 1);
 
   const spans: AnsiSpan[] = [];
   const style: Style = {};
   let cursor = 0;
 
   const push = (text: string) => {
-    if (!text) return;
+    const cleaned = text.replace(CONTROL_CHARS, "");
+    if (!cleaned) return;
     const last = spans[spans.length - 1];
     if (last && sameStyle(last, style)) {
-      last.text += text;
+      last.text += cleaned;
       return;
     }
-    spans.push({ text, ...style });
+    spans.push({ text: cleaned, ...style });
   };
 
   ESCAPE.lastIndex = 0;

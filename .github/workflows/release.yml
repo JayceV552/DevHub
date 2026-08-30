@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags, e.g. v0.1.0
+  workflow_dispatch: # Allow manual trigger from the GitHub Actions tab
+
+jobs:
+  release:
+    name: Build & Release (${{ matrix.platform }})
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+          - platform: 'windows-latest'
+            args: ''
+            rust_targets: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # Step 1: Check out the repository source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up pnpm package manager
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # Step 3: Set up Node.js runtime and cache frontend dependencies
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      # Step 4: Install Rust toolchain and cross-compilation targets
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      # Step 5: Cache Rust dependencies to speed up subsequent builds
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # Step 6: Install frontend dependencies
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Step 7: Build application packages and create GitHub Release
+      - name: Build and Release Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'DevHub ${{ github.ref_name }}'
+          releaseBody: |
+            ## DevHub ${{ github.ref_name }}
+
+            ### Downloads
+            - **macOS**: `.dmg` (Universal binary for both Apple Silicon and Intel Mac)
+            - **Windows**: `.exe` (NSIS Installer) / `.msi` (Windows Installer)
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

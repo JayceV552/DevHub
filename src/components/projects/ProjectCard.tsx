@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { ExternalLink, GitBranch, Pencil, X } from "lucide-react";
 
 import { useDevHub } from "../../hooks/useDevHub";
+import { stripAnsi } from "../../lib/ansi";
 import { api } from "../../lib/api";
 import { outputStore } from "../../lib/outputStore";
 import type { PortEntry, ProjectView, Run } from "../../lib/types";
@@ -27,6 +28,7 @@ export function ProjectCard({ project, ports, onRemoved, onEdit }: {
     () => outputStore.get(outputRunId),
   );
   const lastLine = lines[lines.length - 1];
+  const lastLineText = lastLine ? stripAnsi(lastLine.text).trim() : "";
   const projectPorts = ports.filter((port) => port.projectId === project.id);
   const commandIds = Object.keys(project.commands);
 
@@ -99,7 +101,7 @@ export function ProjectCard({ project, ports, onRemoved, onEdit }: {
         ))}
       </div>
 
-      {projectPorts.length > 0 || lastLine ? (
+      {projectPorts.length > 0 || lastLineText ? (
         <div className="pc-foot">
           {projectPorts.map((port) => (
             <a
@@ -115,9 +117,9 @@ export function ProjectCard({ project, ports, onRemoved, onEdit }: {
               localhost:{port.port}<ExternalLink />
             </a>
           ))}
-          {lastLine ? (
-            <span className={`pc-log ${lastLine.stream === "stderr" ? "is-error" : ""}`} title={lastLine.text}>
-              {lastLine.text}
+          {lastLineText ? (
+            <span className={`pc-log ${lastLine?.stream === "stderr" ? "is-error" : ""}`} title={lastLineText}>
+              {lastLineText}
             </span>
           ) : null}
         </div>
