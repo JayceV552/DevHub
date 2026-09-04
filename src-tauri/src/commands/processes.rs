@@ -5,7 +5,7 @@ use crate::models::{OutputLine, Run};
 use crate::state::AppState;
 
 #[tauri::command]
-pub fn start_command(
+pub async fn start_command(
     state: State<'_, AppState>,
     project_id: String,
     command_id: String,
@@ -22,6 +22,8 @@ pub fn start_command(
             command: command_id.clone(),
         })?;
 
+    stop_previous_session_run(&state, &project.id, &command_id).await?;
+
     state
         .processes
         .spawn(&project.id, &project.name, &project.path, &command_id, spec)
@@ -33,7 +35,7 @@ pub fn stop_run(state: State<'_, AppState>, run_id: String) -> Result<()> {
 }
 
 #[tauri::command]
-pub fn restart_run(state: State<'_, AppState>, run_id: String) -> Result<Run> {
+pub async fn restart_run(state: State<'_, AppState>, run_id: String) -> Result<Run> {
     let run = state
         .processes
         .list_runs()
@@ -42,7 +44,7 @@ pub fn restart_run(state: State<'_, AppState>, run_id: String) -> Result<Run> {
         .ok_or_else(|| Error::RunNotFound(run_id.clone()))?;
 
     if !run.status.is_terminal() {
-        state.processes.stop(&run_id)?;
+        state.processes.stop_and_wait(&run_id).await?;
     }
 
     let project = state
@@ -81,7 +83,7 @@ pub fn clear_run(state: State<'_, AppState>, run_id: String) -> Result<()> {
 }
 
 #[tauri::command]
-pub fn start_group(state: State<'_, AppState>, group: String) -> Result<Vec<Run>> {
+pub async fn start_group(state: State<'_, AppState>, group: String) -> Result<Vec<Run>> {
     let mut started = Vec::new();
     let mut failures = Vec::new();
 
@@ -106,6 +108,11 @@ pub fn start_group(state: State<'_, AppState>, group: String) -> Result<Vec<Run>
             continue;
         }
 
+        if let Err(err) = stop_previous_session_run(&state, &project.id, command_id).await {
+            failures.push(format!("{}: {err}", project.name));
+            continue;
+        }
+
         match state
             .processes
             .spawn(&project.id, &project.name, &project.path, command_id, spec)
@@ -120,6 +127,21 @@ pub fn start_group(state: State<'_, AppState>, group: String) -> Result<Vec<Run>
     } else {
         Err(Error::Other(failures.join("; ")))
     }
+}
+
+async fn stop_previous_session_run(
+    state: &AppState,
+    project_id: &str,
+    command_id: &str,
+) -> Result<()> {
+    let stopped = state
+        .processes
+        .stop_previous_session_runs(project_id, command_id)
+        .await?;
+    for pid in stopped {
+        state.release_orphan(pid);
+    }
+    Ok(())
 }
 
 #[tauri::command]

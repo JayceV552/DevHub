@@ -13,7 +13,7 @@ pub mod testing {
         OutputStream, PortEntry, PortOwnership, Run, RunStatus,
     };
     pub use crate::services::process_manager::terminate_group;
-    pub use crate::services::{Config, default_columns};
+    pub use crate::services::{Config, default_columns, repository_column};
     pub use crate::services::{
         PathResolver, PortManager, ProcessManager, ProjectManager, RunRegistry,
     };
@@ -43,9 +43,8 @@ fn install_signal_handlers(app: tauri::AppHandle) {
         }
 
         if let Some(state) = app.try_state::<AppState>() {
-            state.processes.stop_all();
+            state.processes.stop_all_on_exit();
         }
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         app.exit(0);
     });
 }
@@ -135,7 +134,7 @@ pub fn run() {
             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit)
                 && let Some(state) = app.try_state::<AppState>()
             {
-                state.processes.stop_all();
+                state.processes.stop_all_on_exit();
             }
         });
 }

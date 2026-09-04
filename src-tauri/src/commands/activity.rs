@@ -11,16 +11,6 @@ use crate::state::AppState;
 pub fn list_columns(state: State<'_, AppState>) -> Result<Vec<ActivityColumn>> {
     let existing = state.columns();
     if !existing.is_empty() {
-        let repositories: Vec<String> = {
-            let mut repos: Vec<String> = state
-                .projects()
-                .into_iter()
-                .filter_map(|project| project.repository)
-                .collect();
-            repos.sort();
-            repos.dedup();
-            repos
-        };
         let mut migrated = existing.clone();
         migrated.retain(|column| !matches!(column.id.as_str(), "all" | "pull-requests" | "issues"));
         let mut cleared_legacy_issue_state = false;
@@ -43,16 +33,6 @@ pub fn list_columns(state: State<'_, AppState>) -> Result<Vec<ActivityColumn>> {
                 },
             );
         }
-        for repository in repositories {
-            if !migrated.iter().any(|column| {
-                column.filters.repositories.len() == 1
-                    && column.filters.repositories[0] == repository
-            }) {
-                migrated.push(crate::services::activity_store::repository_column(
-                    &repository,
-                ));
-            }
-        }
         if !cleared_legacy_issue_state
             && migrated
                 .iter()
@@ -67,18 +47,7 @@ pub fn list_columns(state: State<'_, AppState>) -> Result<Vec<ActivityColumn>> {
         });
     }
 
-    let repositories: Vec<String> = {
-        let mut repos: Vec<String> = state
-            .projects()
-            .into_iter()
-            .filter_map(|project| project.repository)
-            .collect();
-        repos.sort();
-        repos.dedup();
-        repos
-    };
-
-    let seeded = default_columns(&repositories);
+    let seeded = default_columns();
     state.update_config(|config| {
         config.columns = seeded.clone();
         Ok(())

@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { WorkspaceGroupSelect } from "./WorkspaceGroupSelect";
 
 interface CommandDraft {
   key: string;
@@ -128,7 +129,12 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
             </div>
             <div className="field">
               <label htmlFor="edit-project-group">Workspace group</label>
-              <Input id="edit-project-group" type="text" value={group} placeholder="Optional" onChange={(event) => setGroup(event.target.value)} />
+              <WorkspaceGroupSelect
+                id="edit-project-group"
+                value={group}
+                placeholder="Optional"
+                onChange={setGroup}
+              />
             </div>
           </div>
 
