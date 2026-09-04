@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { useWindowDragHandle } from "./components/common/PageHeader";
+import { OrphanBanner } from "./components/common/OrphanBanner";
 import { TerminalPanel } from "./components/terminal/TerminalPanel";
 import { Button } from "./components/ui/button";
 import { formatDuration } from "./components/common/StatusDot";
@@ -183,6 +184,7 @@ function Shell() {
       </nav>
 
       <main className="main">
+        <OrphanBanner />
         {error ? (
           <div className="error-bar">
             <span>{error}</span>

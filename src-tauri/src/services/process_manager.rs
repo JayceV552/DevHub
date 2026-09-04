@@ -19,6 +19,8 @@ pub const EVENT_RUN: &str = "devhub://run";
 
 const BATCH_INTERVAL: Duration = Duration::from_millis(40);
 const MAX_FINISHED_RUNS: usize = 100;
+const FORCE_KILL_WAIT: Duration = Duration::from_secs(2);
+const GROUP_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -199,22 +201,22 @@ impl<R: Runtime> ProcessManager<R> {
             let received = tokio::time::timeout(BATCH_INTERVAL, rx.recv()).await;
 
             match received {
-                // A line arrived: record it and keep filling the batch.
+                // Record incoming line.
                 Ok(Some((stream, text))) => {
                     let Some(line) = self.record(&run_id, stream, text) else {
-                        return; // run was removed from under us
+                        return; // Run was removed.
                     };
                     batch.push(line);
                     if batch.len() < 400 {
                         continue;
                     }
                 }
-                // Channel closed: the process's pipes are done.
+                // Process pipes closed.
                 Ok(None) => {
                     self.flush(&run_id, &mut batch);
                     return;
                 }
-                // Quiet for a moment — flush whatever we have.
+                // Flush buffered lines on timeout.
                 Err(_) => {}
             }
             self.flush(&run_id, &mut batch);
@@ -327,20 +329,113 @@ impl<R: Runtime> ProcessManager<R> {
         Ok(())
     }
 
-    pub fn stop_all(self: &Arc<Self>) {
-        let pids: Vec<u32> = {
+    /// Stops a current-session run and waits until its process group and
+    /// supervisor have both finished before allowing a replacement to start.
+    pub async fn stop_and_wait(self: &Arc<Self>, run_id: &str) -> Result<()> {
+        let pid = {
             let mut runs = self.runs.lock().unwrap();
-            runs.values_mut()
-                .filter(|e| !e.run.status.is_terminal())
-                .filter_map(|e| {
-                    e.stop_requested = true;
-                    e.run.pid
-                })
-                .collect()
+            let entry = runs
+                .get_mut(run_id)
+                .ok_or_else(|| Error::RunNotFound(run_id.into()))?;
+            if entry.run.status.is_terminal() {
+                return Ok(());
+            }
+            entry.stop_requested = true;
+            entry
+                .run
+                .pid
+                .ok_or_else(|| Error::Other("run has no pid".into()))?
         };
+
+        terminate_group_and_wait(pid, self.stop_grace).await?;
+
+        let deadline = tokio::time::Instant::now() + FORCE_KILL_WAIT;
+        loop {
+            let finished = self
+                .runs
+                .lock()
+                .unwrap()
+                .get(run_id)
+                .is_none_or(|entry| entry.run.status.is_terminal());
+            if finished {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(Error::Other(format!(
+                    "process group {pid} exited but run {run_id} did not finish"
+                )));
+            }
+            tokio::time::sleep(GROUP_POLL_INTERVAL).await;
+        }
+    }
+
+    pub fn stop_all(self: &Arc<Self>) {
+        let pids = self.mark_all_stopping();
         for pid in pids {
             terminate_group(pid);
         }
+    }
+
+    /// Stops every managed process group during application shutdown.
+    pub fn stop_all_on_exit(&self) {
+        let pids = self.mark_all_stopping();
+        if pids.is_empty() {
+            return;
+        }
+        for pid in &pids {
+            terminate_group(*pid);
+        }
+        std::thread::sleep(Duration::from_millis(300));
+        for pid in pids {
+            if process_group_alive(pid) {
+                kill_group(pid);
+            }
+        }
+    }
+
+    /// Stops a process group recovered from the previous-session registry.
+    /// PID start-time verification prevents a recycled PID from being killed.
+    pub async fn stop_tracked_group(&self, pid: u32) -> Result<()> {
+        if !self.registry.verify(pid) {
+            self.registry.forget(pid);
+            return Ok(());
+        }
+
+        terminate_group_and_wait(pid, self.stop_grace).await?;
+        self.registry.forget(pid);
+        Ok(())
+    }
+
+    /// Removes surviving instances of the same project command before a new
+    /// run is spawned.
+    pub async fn stop_previous_session_runs(
+        &self,
+        project_id: &str,
+        command_id: &str,
+    ) -> Result<Vec<u32>> {
+        let matches: Vec<u32> = self
+            .registry
+            .survivors()
+            .into_iter()
+            .filter(|run| run.project_id == project_id && run.command_id == command_id)
+            .map(|run| run.pid)
+            .collect();
+
+        for pid in &matches {
+            self.stop_tracked_group(*pid).await?;
+        }
+        Ok(matches)
+    }
+
+    fn mark_all_stopping(&self) -> Vec<u32> {
+        let mut runs = self.runs.lock().unwrap();
+        runs.values_mut()
+            .filter(|e| !e.run.status.is_terminal())
+            .filter_map(|e| {
+                e.stop_requested = true;
+                e.run.pid
+            })
+            .collect()
     }
 
     pub fn list_runs(&self) -> Vec<Run> {
@@ -440,6 +535,12 @@ pub fn kill_group(pid: u32) {
     unsafe { libc::killpg(pid as i32, libc::SIGKILL) };
 }
 
+#[cfg(unix)]
+fn process_group_alive(pid: u32) -> bool {
+    let result = unsafe { libc::killpg(pid as i32, 0) };
+    result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
 #[cfg(windows)]
 pub fn terminate_group(pid: u32) {
     let _ = std::process::Command::new("taskkill")
@@ -458,6 +559,43 @@ pub fn kill_group(pid: u32) {
         .status();
 }
 
+#[cfg(windows)]
+fn process_group_alive(pid: u32) -> bool {
+    let target = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes(ProcessesToUpdate::Some(&[target]), true);
+    system.process(target).is_some()
+}
+
+pub async fn terminate_group_and_wait(pid: u32, grace: Duration) -> Result<()> {
+    terminate_group(pid);
+    if wait_for_group_exit(pid, grace).await {
+        return Ok(());
+    }
+
+    kill_group(pid);
+    if wait_for_group_exit(pid, FORCE_KILL_WAIT).await {
+        Ok(())
+    } else {
+        Err(Error::Other(format!(
+            "process group {pid} is still running after SIGKILL"
+        )))
+    }
+}
+
+async fn wait_for_group_exit(pid: u32, budget: Duration) -> bool {
+    let deadline = tokio::time::Instant::now() + budget;
+    loop {
+        if !process_group_alive(pid) {
+            return true;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(GROUP_POLL_INTERVAL).await;
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
@@ -471,15 +609,13 @@ mod tests {
     /// Spawns a shell that forks a background child, and returns
     /// (shell pid, grandchild pid).
     ///
-    /// This is the shape that actually bites in practice: `pnpm dev` is the
-    /// shell, `vite` is the grandchild, and the grandchild is what holds the
-    /// port.
+    /// Simulates nested process hierarchies where an intermediate shell
+    /// spawns child processes that bind ports.
     async fn spawn_tree() -> (u32, i32) {
         let mut command = Command::new("sh");
         command
             .arg("-c")
-            // Print the background child's pid, then block so the parent stays
-            // alive too.
+            // Keep parent shell alive after spawning child process.
             .arg("sleep 120 & echo $!; wait")
             .stdout(Stdio::piped())
             .stderr(Stdio::null());

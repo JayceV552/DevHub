@@ -10,7 +10,16 @@ export function OrphanBanner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listOrphans().then(setOrphans).catch(() => {});
+    let active = true;
+    const refresh = () => api.listOrphans()
+      .then((next) => { if (active) setOrphans(next); })
+      .catch(() => {});
+    refresh();
+    const timer = window.setInterval(refresh, 4_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const act = useCallback(

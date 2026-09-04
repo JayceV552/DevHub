@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { WorkspaceGroupSelect } from "./WorkspaceGroupSelect";
 
 export function AddProjectDialog({
   onClose,
@@ -133,11 +134,10 @@ export function AddProjectDialog({
                 </div>
                 <div className="field">
                   <label htmlFor="project-group">Workspace group <span className="label-optional">Optional</span></label>
-                  <Input
+                  <WorkspaceGroupSelect
                     id="project-group"
-                    type="text"
                     value={group}
-                    onChange={(e) => setGroup(e.target.value)}
+                    onChange={setGroup}
                     placeholder="e.g. DayFlow"
                   />
                 </div>

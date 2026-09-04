@@ -88,6 +88,89 @@ async fn a_process_that_outlives_its_session_is_found_and_can_be_stopped() {
 }
 
 #[tokio::test]
+async fn starting_the_same_command_clears_only_its_previous_session() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    let (website, worker) = {
+        let (processes, _registry) = session(dir.path());
+        let website = processes
+            .spawn(
+                "website",
+                "Calendar Website",
+                &PathBuf::from("/tmp"),
+                "dev",
+                &service("sleep 300 & wait"),
+            )
+            .expect("spawn website")
+            .pid
+            .expect("website pid");
+        let worker = processes
+            .spawn(
+                "worker",
+                "Background Worker",
+                &PathBuf::from("/tmp"),
+                "dev",
+                &service("sleep 300 & wait"),
+            )
+            .expect("spawn worker")
+            .pid
+            .expect("worker pid");
+        (website, worker)
+    };
+
+    let (processes, registry) = session(dir.path());
+    let stopped = processes
+        .stop_previous_session_runs("website", "dev")
+        .await
+        .expect("recover matching command");
+
+    assert_eq!(stopped, vec![website]);
+    assert!(!alive(website), "the old website should be stopped");
+    assert!(alive(worker), "an unrelated old command must stay running");
+    assert!(
+        registry.survivors().iter().all(|run| run.pid != website),
+        "the stopped website must be removed from the registry",
+    );
+
+    processes
+        .stop_tracked_group(worker)
+        .await
+        .expect("cleanup worker");
+}
+
+#[tokio::test]
+async fn a_term_ignoring_orphan_is_force_killed_before_restart() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    let leader = {
+        let (processes, _registry) = session(dir.path());
+        processes
+            .spawn(
+                "website",
+                "Calendar Website",
+                &PathBuf::from("/tmp"),
+                "dev",
+                &service("trap '' TERM; while :; do sleep 1; done"),
+            )
+            .expect("spawn stubborn process")
+            .pid
+            .expect("leader pid")
+    };
+
+    let (processes, registry) = session(dir.path());
+    processes
+        .stop_previous_session_runs("website", "dev")
+        .await
+        .expect("force-stop matching command");
+
+    assert!(
+        !alive(leader),
+        "SIGKILL fallback should remove the old group"
+    );
+    assert!(registry.survivors().is_empty());
+}
+
+#[tokio::test]
 async fn a_clean_exit_leaves_nothing_behind() {
     let dir = tempfile::tempdir().expect("tempdir");
     let (processes, _registry) = session(dir.path());
