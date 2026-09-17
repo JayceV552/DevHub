@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
 use std::process::Stdio;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -16,11 +17,43 @@ impl PathResolver {
     }
 
     pub fn resolve_program(program: &str) -> Option<PathBuf> {
-        if program.contains(std::path::MAIN_SEPARATOR) {
+        Self::resolve_program_in(program, Path::new("."))
+    }
+
+    pub fn resolve_program_in(program: &str, cwd: &Path) -> Option<PathBuf> {
+        let has_sep = program.contains('/') || program.contains('\\');
+        if has_sep {
             let path = PathBuf::from(program);
-            return is_executable(&path).then_some(path);
+            let candidate = if path.is_absolute() {
+                path
+            } else {
+                cwd.join(&path)
+            };
+            if is_executable(&candidate) {
+                return Some(candidate);
+            }
+            #[cfg(windows)]
+            for extension in windows_extensions() {
+                let candidate_ext = PathBuf::from(format!("{}{extension}", candidate.display()));
+                if is_executable(&candidate_ext) {
+                    return Some(candidate_ext);
+                }
+            }
+            if let Some(stem) = Path::new(program).file_stem().and_then(|s| s.to_str()) {
+                let base = stem.trim_end_matches('w');
+                if base != stem {
+                    if let Some(tool) = Self::resolve_from_path(base) {
+                        return Some(tool);
+                    }
+                }
+            }
+            return None;
         }
 
+        Self::resolve_from_path(program)
+    }
+
+    pub fn resolve_from_path(program: &str) -> Option<PathBuf> {
         std::env::split_paths(Self::search_path()).find_map(|dir| {
             let candidate = dir.join(program);
             if is_executable(&candidate) {

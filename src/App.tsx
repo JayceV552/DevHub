@@ -195,7 +195,7 @@ function Shell() {
           </div>
         ) : null}
 
-        <div className={`page ${page === "activity" || page === "clipboard" ? "is-board" : ""}`}>
+        <div className={`page ${page === "activity" || page === "clipboard" || page === "projects" ? "is-board" : ""}`}>
           {page === "dashboard" ? <DashboardPage onNavigate={(p) => setPage(p as Page)} /> : null}
           {page === "projects" ? <ProjectsPage /> : null}
           {page === "ports" ? <PortsPage /> : null}

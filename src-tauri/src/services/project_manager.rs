@@ -57,6 +57,51 @@ impl ProjectManager {
             }
         }
 
+        if let Some((detected_file, program, tasks)) = Self::detect_gradle(&path) {
+            detected_from.push(format!("{detected_file} (gradle)"));
+            for (name, args, kind) in tasks {
+                commands
+                    .entry(format!("gradle:{name}"))
+                    .or_insert(CommandSpec {
+                        program: program.clone(),
+                        args: args.into_iter().map(String::from).collect(),
+                        kind,
+                        env: BTreeMap::new(),
+                        cwd: None,
+                    });
+            }
+        }
+
+        if let Some((program, tasks)) = Self::detect_maven(&path) {
+            detected_from.push("pom.xml (maven)".to_string());
+            for (name, args, kind) in tasks {
+                commands
+                    .entry(format!("mvn:{name}"))
+                    .or_insert(CommandSpec {
+                        program: program.clone(),
+                        args: args.into_iter().map(String::from).collect(),
+                        kind,
+                        env: BTreeMap::new(),
+                        cwd: None,
+                    });
+            }
+        }
+
+        if let Some((manager, tasks)) = Self::detect_dart(&path) {
+            detected_from.push(format!("pubspec.yaml ({manager})"));
+            for (name, program, args, kind) in tasks {
+                commands
+                    .entry(format!("{manager}:{name}"))
+                    .or_insert(CommandSpec {
+                        program,
+                        args,
+                        kind,
+                        env: BTreeMap::new(),
+                        cwd: None,
+                    });
+            }
+        }
+
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -107,6 +152,207 @@ impl ProjectManager {
             Some("bun") => "bun",
             _ => "npm",
         }
+    }
+
+    fn detect_gradle(
+        path: &Path,
+    ) -> Option<(String, String, Vec<(&'static str, Vec<&'static str>, CommandKind)>)> {
+        let (file_name, file_path) = if path.join("build.gradle.kts").is_file() {
+            ("build.gradle.kts".to_string(), path.join("build.gradle.kts"))
+        } else if path.join("build.gradle").is_file() {
+            ("build.gradle".to_string(), path.join("build.gradle"))
+        } else {
+            return None;
+        };
+
+        let program = if path.join("gradlew").is_file() {
+            if cfg!(windows) {
+                "gradlew.bat".to_string()
+            } else {
+                "./gradlew".to_string()
+            }
+        } else {
+            "gradle".to_string()
+        };
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_default();
+        let mut tasks = Vec::new();
+
+        if content.contains("org.springframework.boot") || content.contains("spring-boot") {
+            tasks.push(("bootRun", vec!["bootRun"], CommandKind::Service));
+        }
+        tasks.push(("run", vec!["run"], CommandKind::Service));
+        tasks.push(("build", vec!["build"], CommandKind::Task));
+        tasks.push(("test", vec!["test"], CommandKind::Task));
+        tasks.push(("clean", vec!["clean"], CommandKind::Task));
+
+        Some((file_name, program, tasks))
+    }
+
+    fn detect_maven(
+        path: &Path,
+    ) -> Option<(String, Vec<(&'static str, Vec<&'static str>, CommandKind)>)> {
+        let pom = path.join("pom.xml");
+        if !pom.is_file() {
+            return None;
+        }
+
+        let program = if path.join("mvnw").is_file() {
+            if cfg!(windows) {
+                "mvnw.cmd".to_string()
+            } else {
+                "./mvnw".to_string()
+            }
+        } else {
+            "mvn".to_string()
+        };
+
+        let content = std::fs::read_to_string(&pom).unwrap_or_default();
+        let mut tasks = Vec::new();
+
+        if content.contains("spring-boot") {
+            tasks.push(("spring-boot:run", vec!["spring-boot:run"], CommandKind::Service));
+        }
+        if content.contains("quarkus") {
+            tasks.push(("quarkus:dev", vec!["quarkus:dev"], CommandKind::Service));
+        }
+        tasks.push(("compile", vec!["compile"], CommandKind::Task));
+        tasks.push(("test", vec!["test"], CommandKind::Task));
+        tasks.push(("package", vec!["package"], CommandKind::Task));
+        tasks.push(("clean", vec!["clean"], CommandKind::Task));
+
+        Some((program, tasks))
+    }
+
+    fn detect_dart(
+        path: &Path,
+    ) -> Option<(&'static str, Vec<(String, String, Vec<String>, CommandKind)>)> {
+        let pubspec = path.join("pubspec.yaml");
+        let content = std::fs::read_to_string(&pubspec).ok()?;
+
+        let is_flutter = content.contains("sdk: flutter")
+            || content
+                .lines()
+                .any(|l| l.trim() == "flutter:" || l.contains("flutter_test:"));
+        let manager = if is_flutter { "flutter" } else { "dart" };
+
+        let mut tasks = Vec::new();
+        tasks.push((
+            "run".to_string(),
+            manager.to_string(),
+            vec!["run".to_string()],
+            CommandKind::Service,
+        ));
+        tasks.push((
+            "test".to_string(),
+            manager.to_string(),
+            vec!["test".to_string()],
+            CommandKind::Task,
+        ));
+        if is_flutter {
+            tasks.push((
+                "build".to_string(),
+                "flutter".to_string(),
+                vec!["build".to_string()],
+                CommandKind::Task,
+            ));
+        }
+        tasks.push((
+            "analyze".to_string(),
+            manager.to_string(),
+            vec!["analyze".to_string()],
+            CommandKind::Task,
+        ));
+        tasks.push((
+            "pub:get".to_string(),
+            manager.to_string(),
+            vec!["pub".to_string(), "get".to_string()],
+            CommandKind::Task,
+        ));
+
+        if content.contains("build_runner") {
+            if is_flutter {
+                tasks.push((
+                    "build_runner".to_string(),
+                    "flutter".to_string(),
+                    vec![
+                        "pub".to_string(),
+                        "run".to_string(),
+                        "build_runner".to_string(),
+                        "build".to_string(),
+                        "--delete-conflicting-outputs".to_string(),
+                    ],
+                    CommandKind::Task,
+                ));
+                tasks.push((
+                    "build_runner:watch".to_string(),
+                    "flutter".to_string(),
+                    vec![
+                        "pub".to_string(),
+                        "run".to_string(),
+                        "build_runner".to_string(),
+                        "watch".to_string(),
+                        "--delete-conflicting-outputs".to_string(),
+                    ],
+                    CommandKind::Service,
+                ));
+            } else {
+                tasks.push((
+                    "build_runner".to_string(),
+                    "dart".to_string(),
+                    vec![
+                        "run".to_string(),
+                        "build_runner".to_string(),
+                        "build".to_string(),
+                        "--delete-conflicting-outputs".to_string(),
+                    ],
+                    CommandKind::Task,
+                ));
+                tasks.push((
+                    "build_runner:watch".to_string(),
+                    "dart".to_string(),
+                    vec![
+                        "run".to_string(),
+                        "build_runner".to_string(),
+                        "watch".to_string(),
+                        "--delete-conflicting-outputs".to_string(),
+                    ],
+                    CommandKind::Service,
+                ));
+            }
+        }
+
+        let mut in_scripts = false;
+        for line in content.lines() {
+            let trimmed = line.trim_end();
+            if trimmed.is_empty() || trimmed.trim_start().starts_with('#') {
+                continue;
+            }
+            if !line.starts_with(' ') && !line.starts_with('\t') {
+                in_scripts = trimmed.starts_with("scripts:");
+                continue;
+            }
+            if in_scripts {
+                if let Some((name, cmd)) = line.trim().split_once(':') {
+                    let name = name.trim();
+                    let cmd = cmd.trim().trim_matches('"').trim_matches('\'');
+                    if !name.is_empty() && !cmd.is_empty() {
+                        let parts: Vec<String> =
+                            cmd.split_whitespace().map(String::from).collect();
+                        if let Some((first, rest)) = parts.split_first() {
+                            tasks.push((
+                                name.to_string(),
+                                first.clone(),
+                                rest.to_vec(),
+                                CommandKind::guess_from_name(name),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        Some((manager, tasks))
     }
 
     pub fn read_branch(path: &Path) -> Option<String> {

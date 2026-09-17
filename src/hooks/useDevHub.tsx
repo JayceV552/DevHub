@@ -50,6 +50,11 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [focusedProject, setFocusedProject] = useState<string | null>(null);
+  const runsRef = useRef<Run[]>([]);
+
+  useEffect(() => {
+    runsRef.current = runs;
+  }, [runs]);
 
   const report = useCallback((err: unknown) => setError(errorMessage(err)), []);
 
@@ -81,6 +86,7 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
         ]);
         if (cancelled) return;
         setProjects(loadedProjects);
+        runsRef.current = loadedRuns;
         setRuns(loadedRuns);
       } catch (err) {
         if (!cancelled) report(err);
@@ -90,15 +96,37 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
 
       unlisten.push(
         await onOutput((batch) => outputStore.append(batch.runId, batch.lines)),
-        await onRunChange((run) =>
+        await onRunChange((run) => {
           setRuns((previous) => {
             const index = previous.findIndex((r) => r.runId === run.runId);
-            if (index === -1) return [run, ...previous];
-            const next = previous.slice();
-            next[index] = run;
+            const next = index === -1 ? [run, ...previous] : previous.slice();
+            if (index !== -1) next[index] = run;
+            runsRef.current = next;
             return next;
-          }),
-        ),
+          });
+
+          setOpenTabs((tabs) => {
+            const existingIndex = tabs.findIndex((tabRunId) => {
+              if (tabRunId === run.runId) return false;
+              const tabRun = runsRef.current.find((r) => r.runId === tabRunId);
+              return (
+                tabRun !== undefined &&
+                tabRun.projectId === run.projectId &&
+                tabRun.commandId === run.commandId
+              );
+            });
+
+            if (existingIndex !== -1) {
+              const oldRunId = tabs[existingIndex];
+              outputStore.clear(oldRunId);
+              const next = [...tabs];
+              next[existingIndex] = run.runId;
+              setActiveTab((current) => (current === oldRunId ? run.runId : current));
+              return next;
+            }
+            return tabs;
+          });
+        }),
       );
       if (cancelled) unlisten.forEach((fn) => fn());
     })();
@@ -110,7 +138,47 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
   }, [report]);
 
   const openTab = useCallback((runId: string) => {
-    setOpenTabs((tabs) => (tabs.includes(runId) ? tabs : [...tabs, runId]));
+    const targetRun = runsRef.current.find((r) => r.runId === runId);
+
+    setOpenTabs((tabs) => {
+      if (targetRun) {
+        const existingIndex = tabs.findIndex((tabRunId) => {
+          if (tabRunId === targetRun.runId) return true;
+          const tabRun = runsRef.current.find((r) => r.runId === tabRunId);
+          return (
+            tabRun !== undefined &&
+            tabRun.projectId === targetRun.projectId &&
+            tabRun.commandId === targetRun.commandId
+          );
+        });
+
+        if (existingIndex !== -1) {
+          const oldRunId = tabs[existingIndex];
+          if (oldRunId !== targetRun.runId) {
+            outputStore.clear(oldRunId);
+          }
+          const next = [...tabs];
+          next[existingIndex] = targetRun.runId;
+          return next.filter((id, idx) => {
+            if (idx === existingIndex) return true;
+            if (id === targetRun.runId) return false;
+            const r = runsRef.current.find((item) => item.runId === id);
+            if (
+              r &&
+              r.projectId === targetRun.projectId &&
+              r.commandId === targetRun.commandId
+            ) {
+              outputStore.clear(id);
+              return false;
+            }
+            return true;
+          });
+        }
+      }
+
+      return tabs.includes(runId) ? tabs : [...tabs, runId];
+    });
+
     setActiveTab(runId);
   }, []);
 
@@ -129,7 +197,8 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
     async (projectId: string, commandId: string) => {
       try {
         const run = await api.startCommand(projectId, commandId);
-        setRuns((previous) => [run, ...previous.filter((r) => r.runId !== run.runId)]);
+        runsRef.current = [run, ...runsRef.current.filter((r) => r.runId !== run.runId)];
+        setRuns(runsRef.current);
         setFocusedProject((current) => (current === null ? null : projectId));
         openTab(run.runId);
       } catch (err) {
@@ -154,7 +223,8 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
     async (runId: string) => {
       try {
         const run = await api.restartRun(runId);
-        setRuns((previous) => [run, ...previous.filter((r) => r.runId !== run.runId)]);
+        runsRef.current = [run, ...runsRef.current.filter((r) => r.runId !== run.runId)];
+        setRuns(runsRef.current);
         openTab(run.runId);
       } catch (err) {
         report(err);

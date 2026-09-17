@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::Utc;
+#[cfg(windows)]
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -101,7 +103,7 @@ impl<R: Runtime> ProcessManager<R> {
         };
 
         let program =
-            PathResolver::resolve_program(&spec.program).ok_or_else(|| Error::ProgramNotFound {
+            PathResolver::resolve_program_in(&spec.program, &cwd).ok_or_else(|| Error::ProgramNotFound {
                 program: spec.program.clone(),
                 shell: PathResolver::login_shell(),
             })?;
@@ -125,7 +127,6 @@ impl<R: Runtime> ProcessManager<R> {
 
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
             const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
             command.creation_flags(CREATE_NEW_PROCESS_GROUP);
         }
