@@ -1,0 +1,341 @@
+/* Grid + flex so a lone child (loading, empty) stretches to the real board
+   height instead of sitting in a short box at the top. */
+.todo-board-base {
+  flex: 1;
+  min-height: 552px;
+  display: grid;
+  transition: opacity 260ms ease, filter 320ms ease, transform 360ms cubic-bezier(0.22, 0.8, 0.22, 1);
+}
+
+.todo-issue-folder {
+  --folder-bg: #d6e8f7;
+  --folder-back: #e7f2fb;
+  --folder-ink: #16456c;
+  position: relative;
+  min-width: 0;
+  /* Taller than a note on purpose: it is what makes a folder's row grow. */
+  min-height: 214px;
+  filter: drop-shadow(0 14px 15px rgba(68, 90, 108, 0.13));
+  transition: filter 220ms ease, transform 240ms cubic-bezier(0.22, 0.8, 0.22, 1);
+}
+
+.todo-folder-main {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--folder-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.todo-folder-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.todo-folder-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.todo-folder-back {
+  fill: var(--folder-back);
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.todo-folder-front {
+  fill: var(--folder-bg);
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: fill 180ms ease;
+}
+
+/* The soft "drop things here" disc from the reference art: decorative, since
+   the whole folder is already one button. */
+.todo-folder-glyph {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  z-index: 3;
+  width: 62px;
+  height: 62px;
+  display: block;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.todo-folder-glyph svg { width: 100%; height: 100%; display: block; }
+
+.todo-folder-glyph-disc {
+  fill: rgba(255, 255, 255, 0.34);
+  transition: fill 180ms ease;
+}
+
+.todo-folder-glyph-arrow {
+  fill: none;
+  stroke: rgba(22, 69, 108, 0.26);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 180ms ease;
+}
+
+.todo-folder-copy {
+  position: absolute;
+  left: 22px;
+  right: 70px;
+  bottom: 21px;
+  z-index: 2;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.todo-folder-copy small {
+  color: rgba(22, 69, 108, 0.62);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.todo-folder-copy strong {
+  overflow: hidden;
+  color: #0f3c63;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-folder-library {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff;
+  color: #1a5c92;
+  box-shadow: 0 4px 10px rgba(23, 63, 95, 0.17), 0 1px 2px rgba(23, 63, 95, 0.1);
+}
+
+.todo-folder-library svg { width: 18px; height: 18px; stroke-width: 2.2; }
+
+.todo-folder-main:hover .todo-folder-front { fill: #cbe2f5; }
+.todo-folder-main:hover .todo-folder-glyph-disc { fill: rgba(255, 255, 255, 0.62); }
+.todo-folder-main:hover .todo-folder-glyph-arrow { stroke: rgba(22, 69, 108, 0.46); }
+.todo-issue-folder:hover { filter: drop-shadow(0 18px 18px rgba(68, 90, 108, 0.18)); transform: translateY(-2px); }
+.todo-issue-folder.is-expanded { filter: drop-shadow(0 8px 10px rgba(68, 90, 108, 0.1)); transform: scale(0.985); }
+
+.todo-pinboard.is-folder-preview {
+  min-height: 630px;
+}
+
+.todo-pinboard.is-folder-preview .todo-board-base {
+  opacity: 0.18;
+  filter: blur(1.5px) saturate(0.8);
+  pointer-events: none;
+  transform: scale(0.985);
+}
+
+.todo-folder-stage {
+  position: absolute;
+  inset: 8px;
+  z-index: 8;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 22px;
+  padding: 26px 26px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(112, 77, 43, 0.2);
+  border-radius: 14px;
+  background-color: rgba(222, 199, 165, 0.96);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(105, 72, 43, 0.18) 1px, transparent 1.1px),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.16), transparent 48%);
+  background-size: 15px 15px, 100% 100%;
+  box-shadow: 0 16px 34px rgba(74, 48, 27, 0.19);
+  transform-origin: 50% 62%;
+  animation: folder-preview-open 420ms cubic-bezier(0.22, 0.82, 0.22, 1) both;
+}
+
+.todo-folder-stage.is-closing {
+  pointer-events: none;
+  animation: folder-preview-close 360ms cubic-bezier(0.4, 0, 0.65, 1) both;
+}
+
+.todo-folder-stage-header {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 9px 7px 11px;
+  border: 1px solid rgba(105, 72, 43, 0.16);
+  border-radius: 13px;
+  background: rgba(255, 252, 239, 0.7);
+  box-shadow: 0 5px 13px rgba(91, 62, 34, 0.08);
+  animation: folder-preview-header-in 360ms 50ms cubic-bezier(0.22, 0.82, 0.22, 1) both;
+}
+
+.todo-folder-stage-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.todo-folder-stage-heading > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  background: #d9edf8;
+  color: #16456c;
+}
+
+.todo-folder-stage-heading svg { width: 17px; height: 17px; }
+.todo-folder-stage-heading > div { min-width: 0; display: grid; gap: 2px; }
+.todo-folder-stage-heading strong { overflow: hidden; color: #3d3329; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.todo-folder-stage-heading small { color: rgba(73, 50, 29, 0.62); font-size: 9.5px; }
+
+.todo-folder-stage-actions { display: flex; align-items: center; gap: 5px; }
+
+.todo-folder-stage-actions button {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid rgba(105, 72, 43, 0.15);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.38);
+  color: #644a31;
+  font-size: 9.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.todo-folder-stage-actions button:last-child { width: 30px; padding: 0; }
+.todo-folder-stage-actions button:hover { background: rgba(255, 255, 255, 0.68); color: #2f241b; }
+.todo-folder-stage-actions svg { width: 13px; height: 13px; }
+
+.todo-folder-preview-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(185px, 1fr);
+  gap: 20px 18px;
+}
+
+.todo-folder-preview-note {
+  --note-bg: #f9f2d9;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 23px 17px 14px;
+  overflow: visible;
+  border: 1px solid rgba(103, 77, 38, 0.12);
+  border-radius: 2px 2px 24px 2px;
+  background: var(--note-bg);
+  color: #263247;
+  box-shadow: 0 9px 16px rgba(87, 56, 30, 0.13);
+  cursor: pointer;
+  text-align: left;
+  transform-origin: 50% 100%;
+  animation: folder-note-in 440ms calc(90ms + var(--preview-index) * 42ms) cubic-bezier(0.22, 0.82, 0.22, 1) both;
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.todo-folder-preview-note.is-blue { --note-bg: #d9f0f3; }
+.todo-folder-preview-note.is-green { --note-bg: #e4f2ce; }
+.todo-folder-preview-note.is-rose { --note-bg: #f7dcd6; }
+.todo-folder-preview-note.is-yellow { --note-bg: #fbf3b9; }
+.todo-folder-preview-note:hover { z-index: 2; box-shadow: 0 13px 21px rgba(87, 56, 30, 0.18); transform: translateY(-3px) rotate(0); }
+
+.todo-folder-preview-note > .todo-note-tape { width: 62px; height: 18px; }
+
+.todo-folder-preview-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.todo-folder-preview-meta > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }
+.todo-folder-preview-meta strong { overflow: hidden; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.todo-folder-preview-meta small { color: rgba(38, 50, 71, 0.56); font-family: var(--mono); font-size: 8.5px; }
+.todo-folder-preview-meta > svg { width: 13px; height: 13px; margin-left: auto; color: rgba(38, 50, 71, 0.38); }
+
+.todo-folder-preview-note > strong {
+  display: -webkit-box;
+  margin-top: 19px;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 680;
+  line-height: 1.42;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.todo-folder-preview-detail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 10px;
+  color: rgba(38, 50, 71, 0.56);
+  font-size: 8.5px;
+}
+
+.todo-folder-preview-detail > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todo-folder-preview-detail small { display: inline-flex; align-items: center; gap: 3px; font-size: inherit; }
+.todo-folder-preview-detail svg { width: 11px; height: 11px; }
+.todo-folder-stage.is-closing .todo-folder-stage-header { animation: folder-preview-header-out 220ms ease both; }
+.todo-folder-stage.is-closing .todo-folder-preview-note { animation: folder-note-out 240ms calc((5 - var(--preview-index)) * 18ms) ease-in both; }
+
+@keyframes folder-preview-open {
+  from { opacity: 0; clip-path: inset(35% 36% 30% round 28px); transform: translateY(18px) scale(0.94); }
+  to { opacity: 1; clip-path: inset(0 round 14px); transform: translateY(0) scale(1); }
+}
+
+@keyframes folder-preview-close {
+  from { opacity: 1; clip-path: inset(0 round 14px); transform: translateY(0) scale(1); }
+  to { opacity: 0; clip-path: inset(34% 36% 30% round 28px); transform: translateY(20px) scale(0.94); }
+}
+
+@keyframes folder-preview-header-in { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes folder-preview-header-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes folder-note-in { from { opacity: 0; transform: translateY(48px) scale(0.88) rotate(-1.5deg); } }
+@keyframes folder-note-out { to { opacity: 0; transform: translateY(42px) scale(0.88) rotate(1deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .todo-folder-stage,
+  .todo-folder-stage.is-closing,
+  .todo-folder-stage-header,
+  .todo-folder-preview-note,
+  .todo-folder-stage.is-closing .todo-folder-stage-header,
+  .todo-folder-stage.is-closing .todo-folder-preview-note,
+  .todo-task-stage-body { animation-duration: 1ms; animation-delay: 0ms; }
+}
+

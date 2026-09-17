@@ -111,3 +111,71 @@ fn scanning_a_file_is_an_error() {
 
     assert!(ProjectManager::scan(&file).is_err());
 }
+
+#[test]
+fn detects_gradle_project_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("build.gradle"),
+        "plugins { id 'org.springframework.boot' version '3.2.0' }\n",
+    )
+    .unwrap();
+
+    let scan = ProjectManager::scan(dir.path()).expect("scan");
+    assert!(scan.detected_from.iter().any(|s| s.contains("gradle")));
+    assert_eq!(scan.commands["gradle:bootRun"].kind, CommandKind::Service);
+    assert_eq!(scan.commands["gradle:build"].kind, CommandKind::Task);
+    assert_eq!(scan.commands["gradle:test"].kind, CommandKind::Task);
+}
+
+#[test]
+fn detects_maven_project_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("pom.xml"),
+        "<project><dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter</artifactId></dependency></dependencies></project>",
+    )
+    .unwrap();
+
+    let scan = ProjectManager::scan(dir.path()).expect("scan");
+    assert!(scan.detected_from.iter().any(|s| s.contains("maven")));
+    assert_eq!(
+        scan.commands["mvn:spring-boot:run"].kind,
+        CommandKind::Service
+    );
+    assert_eq!(scan.commands["mvn:package"].kind, CommandKind::Task);
+    assert_eq!(scan.commands["mvn:test"].kind, CommandKind::Task);
+}
+
+#[test]
+fn detects_flutter_project_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("pubspec.yaml"),
+        "name: app\ndependencies:\n  flutter:\n    sdk: flutter\n",
+    )
+    .unwrap();
+
+    let scan = ProjectManager::scan(dir.path()).expect("scan");
+    assert!(scan.detected_from.iter().any(|s| s.contains("flutter")));
+    assert_eq!(scan.commands["flutter:run"].program, "flutter");
+    assert_eq!(scan.commands["flutter:run"].kind, CommandKind::Service);
+    assert_eq!(scan.commands["flutter:test"].kind, CommandKind::Task);
+    assert_eq!(scan.commands["flutter:build"].kind, CommandKind::Task);
+}
+
+#[test]
+fn detects_dart_project_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("pubspec.yaml"),
+        "name: cli\nenvironment:\n  sdk: ^3.0.0\n",
+    )
+    .unwrap();
+
+    let scan = ProjectManager::scan(dir.path()).expect("scan");
+    assert!(scan.detected_from.iter().any(|s| s.contains("dart")));
+    assert_eq!(scan.commands["dart:run"].program, "dart");
+    assert_eq!(scan.commands["dart:run"].kind, CommandKind::Service);
+    assert_eq!(scan.commands["dart:test"].kind, CommandKind::Task);
+}

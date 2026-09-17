@@ -154,7 +154,7 @@ mod tests {
     fn a_live_process_survives_and_a_dead_one_is_pruned() {
         let (_dir, registry) = registry();
 
-        // Our own process is unambiguously alive.
+        // Current process is alive.
         registry.track(&run_with_pid(std::process::id()));
         assert_eq!(registry.survivors().len(), 1);
 

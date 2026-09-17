@@ -133,6 +133,35 @@ async fn stopping_a_service_reports_stopped_not_failed() {
 }
 
 #[tokio::test]
+async fn waiting_for_stop_allows_the_same_command_to_restart_immediately() {
+    let processes = manager();
+    let dev = spec(
+        "sh",
+        &["-c", "trap '' TERM; while :; do sleep 1; done"],
+        CommandKind::Service,
+    );
+
+    let first = processes
+        .spawn("website", "Website", &PathBuf::from("/tmp"), "dev", &dev)
+        .expect("first start");
+
+    processes
+        .stop_and_wait(&first.run_id)
+        .await
+        .expect("stop before restart");
+
+    let second = processes
+        .spawn("website", "Website", &PathBuf::from("/tmp"), "dev", &dev)
+        .expect("replacement should start immediately");
+    assert_ne!(first.run_id, second.run_id);
+
+    processes
+        .stop_and_wait(&second.run_id)
+        .await
+        .expect("cleanup replacement");
+}
+
+#[tokio::test]
 async fn refuses_to_start_the_same_command_twice() {
     let processes = manager();
     let dev = spec("sh", &["-c", "sleep 120"], CommandKind::Service);

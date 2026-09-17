@@ -79,21 +79,15 @@ impl ActivityStore {
     }
 }
 
-pub fn default_columns(repositories: &[String]) -> Vec<crate::models::ActivityColumn> {
+pub fn default_columns() -> Vec<crate::models::ActivityColumn> {
     use crate::models::ActivityColumn;
 
-    let mut columns = vec![ActivityColumn {
+    vec![ActivityColumn {
         id: "dashboard".into(),
         title: "Dashboard".into(),
         filters: ColumnFilters::default(),
         read_through: None,
-    }];
-
-    for repo in repositories {
-        columns.push(repository_column(repo));
-    }
-
-    columns
+    }]
 }
 
 pub fn repository_column(repo: &str) -> crate::models::ActivityColumn {
@@ -193,25 +187,15 @@ mod tests {
 
     #[test]
     fn default_columns_start_with_dashboard() {
-        let columns = default_columns(&[]);
+        let columns = default_columns();
         let ids: Vec<&str> = columns.iter().map(|c| c.id.as_str()).collect();
         assert_eq!(ids, ["dashboard"]);
     }
 
     #[test]
-    fn a_couple_of_repositories_get_their_own_columns() {
-        let repos = vec!["dayflow-js/calendar".into(), "dayflow-js/pro".into()];
-        let columns = default_columns(&repos);
-
-        assert_eq!(columns.len(), 3);
-        let calendar = columns
-            .iter()
-            .find(|c| c.title == "calendar")
-            .expect("repo column");
-        assert_eq!(calendar.filters.repositories, vec!["dayflow-js/calendar"]);
-
-        assert_eq!(default_columns(&["only/one".into()]).len(), 2);
-        let many: Vec<String> = (0..9).map(|n| format!("org/repo{n}")).collect();
-        assert_eq!(default_columns(&many).len(), 10);
+    fn repository_column_creates_expected_filter() {
+        let column = repository_column("dayflow-js/calendar");
+        assert_eq!(column.title, "calendar");
+        assert_eq!(column.filters.repositories, vec!["dayflow-js/calendar"]);
     }
 }

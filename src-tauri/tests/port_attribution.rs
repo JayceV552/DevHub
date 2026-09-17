@@ -127,17 +127,15 @@ fn poll_attempts() -> u32 {
     (POLL_BUDGET.as_millis() / POLL_INTERVAL.as_millis()) as u32
 }
 
-/// This has only ever failed on CI, so say what the poll actually saw: whether
-/// the run died, what the child printed, and which listeners were visible.
+/// Formats diagnostic information when port detection fails, including
+/// process run status, child output, and listening ports.
 fn diagnose(
     ports: &mut PortManager,
     processes: &Arc<ProcessManager<MockRuntime>>,
     run: &Run,
     python: &str,
 ) -> String {
-    // Connecting proves whether anything is actually bound, independently of
-    // the socket enumeration under test — it separates "the server never came
-    // up" from "the server is up but PortManager cannot see it".
+    // Check if the port is reachable directly via TCP connection.
     let reachable = match TcpStream::connect_timeout(
         &SocketAddr::from(([127, 0, 0, 1], TEST_PORT)),
         Duration::from_secs(1),

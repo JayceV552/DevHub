@@ -98,17 +98,50 @@
   color: var(--warning-text);
   padding: 8px 16px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12px;
   flex-shrink: 0;
 }
 
-.orphan-banner .copy {
+.orphan-banner header,
+.orphan-banner li {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.orphan-banner header p {
+  margin: 2px 0 0;
+}
+
+.orphan-banner .spacer {
+  flex: 1;
+}
+
+.orphan-banner ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orphan-banner li {
+  padding-left: 26px;
+}
+
+.orphan-banner code {
+  color: inherit;
+}
+
+.orphan-banner .orphan-pid {
+  color: var(--text-faint);
+}
+
+.orphan-banner .orphan-error {
+  margin: 0 0 0 26px;
+  color: var(--danger);
 }
 
 .orphan-banner .actions {

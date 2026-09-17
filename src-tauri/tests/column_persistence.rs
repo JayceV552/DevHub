@@ -69,11 +69,12 @@ fn a_column_with_default_filters_round_trips() {
 
 #[test]
 fn a_whole_config_with_columns_round_trips() {
+    let mut columns = devhub_lib::testing::default_columns();
+    columns.push(devhub_lib::testing::repository_column("dayflow-js/calendar"));
+    columns.push(devhub_lib::testing::repository_column("dayflow-js/pro"));
+
     let config = Config {
-        columns: devhub_lib::testing::default_columns(&[
-            "dayflow-js/calendar".into(),
-            "dayflow-js/pro".into(),
-        ]),
+        columns,
         ..Default::default()
     };
 

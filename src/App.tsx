@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { useWindowDragHandle } from "./components/common/PageHeader";
+import { OrphanBanner } from "./components/common/OrphanBanner";
 import { TerminalPanel } from "./components/terminal/TerminalPanel";
 import { Button } from "./components/ui/button";
 import { formatDuration } from "./components/common/StatusDot";
@@ -183,6 +184,7 @@ function Shell() {
       </nav>
 
       <main className="main">
+        <OrphanBanner />
         {error ? (
           <div className="error-bar">
             <span>{error}</span>
@@ -193,7 +195,7 @@ function Shell() {
           </div>
         ) : null}
 
-        <div className={`page ${page === "activity" || page === "clipboard" ? "is-board" : ""}`}>
+        <div className={`page ${page === "activity" || page === "clipboard" || page === "projects" ? "is-board" : ""}`}>
           {page === "dashboard" ? <DashboardPage onNavigate={(p) => setPage(p as Page)} /> : null}
           {page === "projects" ? <ProjectsPage /> : null}
           {page === "ports" ? <PortsPage /> : null}

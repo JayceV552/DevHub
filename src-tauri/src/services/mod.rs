@@ -10,7 +10,7 @@ pub mod project_manager;
 pub mod run_registry;
 pub mod token_store;
 
-pub use activity_store::{ActivityStore, default_columns};
+pub use activity_store::{ActivityStore, default_columns, repository_column};
 pub use clipboard_store::ClipboardStore;
 pub use config_manager::{Config, ConfigManager, Settings};
 pub use github_auth::{
