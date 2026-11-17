@@ -1,5 +1,6 @@
 import type { ProjectView, Run } from "../../lib/types";
 import { relativeTime } from "../activity/ActivityCard";
+import { translate, useI18n } from "../../lib/i18n";
 
 export type ProjectStatus = "running" | "failed" | "missing" | "idle";
 
@@ -20,20 +21,21 @@ export function projectStatus(project: ProjectView, runs: Run[]): ProjectStatus 
 export const needsAttention = (status: ProjectStatus) => status === "failed" || status === "missing";
 
 export function StatusPill({ status, runs }: { status: ProjectStatus; runs: Run[] }) {
+  const { t } = useI18n();
   const running = runs.filter((run) => run.status === "running");
   const latest = runs[0];
   const title = status === "running"
     ? running.map((run) => run.displayCommand).join("\n")
     : status === "failed" && latest
-      ? `${latest.commandId} exited with code ${latest.exitCode ?? "unknown"}`
+      ? t("{command} exited with code {code}", { command: latest.commandId, code: latest.exitCode ?? t("unknown") })
       : status === "missing"
-        ? "The project folder no longer exists"
+        ? t("The project folder no longer exists")
         : undefined;
 
   return (
     <span className={`project-status is-${status}`} title={title}>
       <span className="dot" />
-      {LABELS[status]}
+      {t(LABELS[status])}
       {running.length > 1 ? <span className="project-status-count">{running.length}</span> : null}
     </span>
   );
@@ -46,7 +48,7 @@ export function defaultService(project: ProjectView): string | undefined {
 
 export function formatAgo(timestamp: string): string {
   const elapsed = relativeTime(new Date(timestamp));
-  return elapsed === "now" ? "just now" : `${elapsed} ago`;
+  return elapsed === translate("now") ? translate("just now") : translate("{elapsed} ago", { elapsed });
 }
 
 export function monogram(name: string): string {

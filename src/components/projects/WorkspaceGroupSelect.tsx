@@ -6,6 +6,7 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "../ui/popover";
+import { useI18n } from "../../lib/i18n";
 
 interface WorkspaceGroupSelectProps {
   id?: string;
@@ -20,10 +21,11 @@ export function WorkspaceGroupSelect({
   id,
   value,
   onChange,
-  placeholder = "Optional",
+  placeholder,
   disabled = false,
   className,
 }: WorkspaceGroupSelectProps) {
+  const { t } = useI18n();
   const { projects } = useDevHub();
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +65,7 @@ export function WorkspaceGroupSelect({
             type="text"
             value={value}
             disabled={disabled}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t("Optional")}
             className="pr-14"
             autoComplete="off"
             onChange={(event) => {
@@ -94,7 +96,7 @@ export function WorkspaceGroupSelect({
                 variant="ghost"
                 size="icon-xs"
                 className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                aria-label="Clear group"
+                aria-label={t("Clear group")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange("");
@@ -109,7 +111,7 @@ export function WorkspaceGroupSelect({
               variant="ghost"
               size="icon-xs"
               className="h-6 w-6 text-muted-foreground hover:text-foreground"
-              aria-label="Toggle group list"
+              aria-label={t("Toggle group list")}
               onClick={(e) => {
                 e.stopPropagation();
                 setOpen((prev) => !prev);
@@ -145,11 +147,11 @@ export function WorkspaceGroupSelect({
               >
                 <Plus className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="truncate">
-                  Create group <strong>“{value.trim()}”</strong>
+                  {t("Create group")} <strong>“{value.trim()}”</strong>
                 </span>
               </button>
             ) : (
-              <span>No groups yet. Type to create a new group.</span>
+              <span>{t("No groups yet. Type to create a new group.")}</span>
             )}
           </div>
         ) : (
@@ -181,7 +183,7 @@ export function WorkspaceGroupSelect({
               })
             ) : (
               <div className="px-2 py-1.5 text-muted-foreground">
-                No matching groups found.
+                {t("No matching groups found.")}
               </div>
             )}
 
@@ -195,7 +197,7 @@ export function WorkspaceGroupSelect({
                 >
                   <Plus className="size-3.5 text-muted-foreground shrink-0" />
                   <span className="truncate">
-                    Create new group <strong>“{value.trim()}”</strong>
+                    {t("Create new group")} <strong>“{value.trim()}”</strong>
                   </span>
                 </button>
               </>
@@ -210,7 +212,7 @@ export function WorkspaceGroupSelect({
                   onClick={() => handleSelect("")}
                 >
                   <X className="size-3.5 shrink-0" />
-                  <span>Clear group (ungrouped)</span>
+                  <span>{t("Clear group (ungrouped)")}</span>
                 </button>
               </>
             ) : null}

@@ -22,6 +22,7 @@ import { ProjectsPage } from "./pages/Projects";
 import { SettingsPage } from "./pages/Settings";
 import { ClipboardPage } from "./pages/Clipboard";
 import { api, onClipboardChange } from "./lib/api";
+import { useI18n } from "./lib/i18n";
 
 type Page = "dashboard" | "projects" | "ports" | "clipboard" | "activity" | "settings";
 
@@ -80,6 +81,7 @@ function Shell() {
   const [clipboardCount, setClipboardCount] = useState(0);
   const { projects, runs, ports, error, dismissError, openTab, setFocusedProject } = useDevHub();
   const sidebarWindowDragHandle = useWindowDragHandle();
+  const { t } = useI18n();
 
   const counts: Record<Page, string | null> = {
     dashboard: null,
@@ -121,10 +123,10 @@ function Shell() {
           <span className="brand-mark"><DevHubLogo aria-hidden="true" /></span>
           <span className="brand-copy">
             <strong>DevHub</strong>
-            <small>Workspace control</small>
+            <small>{t("Workspace control")}</small>
           </span>
         </div>
-        <div className="sidebar-section-label">Workspace</div>
+        <div className="sidebar-section-label">{t("Workspace")}</div>
         <div className="sidebar-nav">
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -134,11 +136,11 @@ function Shell() {
                 variant="ghost"
                 className="nav-item"
                 aria-current={page === item.id ? "page" : undefined}
-                title={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? t(item.label) : undefined}
                 onClick={() => setPage(item.id)}
               >
                 <span className="nav-icon"><Icon aria-hidden="true" /></span>
-                <span className="nav-label">{item.label}</span>
+                <span className="nav-label">{t(item.label)}</span>
                 {counts[item.id] ? <span className="nav-count">{counts[item.id]}</span> : null}
               </Button>
             );
@@ -146,7 +148,7 @@ function Shell() {
         </div>
         {running.length > 0 ? (
           <div className="sidebar-running-wrap">
-            <div className="sidebar-section-label">Running</div>
+            <div className="sidebar-section-label">{t("Running")}</div>
             <div className="sidebar-running">
               {running.map((run) => (
                 <button
@@ -169,13 +171,13 @@ function Shell() {
           <div className="sidebar-status">
             <span className={`status ${runningCount ? "running" : ""}`}>
               <span className="dot" />
-              <span className="status-label">{runningCount ? `${runningCount} running` : "Idle"}</span>
+              <span className="status-label">{runningCount ? t("{count} running", { count: runningCount }) : t("Idle")}</span>
             </span>
             <button
               className="sidebar-collapse-button"
               onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={sidebarCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+              title={sidebarCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
             >
               {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
             </button>
@@ -190,7 +192,7 @@ function Shell() {
             <span>{error}</span>
             <span className="spacer" />
             <Button variant="ghost" size="sm" onClick={dismissError}>
-              Dismiss
+              {t("Dismiss")}
             </Button>
           </div>
         ) : null}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { Run, RunStatus } from "../../lib/types";
+import { useI18n } from "../../lib/i18n";
 
 const LABELS: Record<RunStatus, string> = {
   running: "Running",
@@ -27,6 +28,7 @@ export function StatusDot({ run, showDuration = true, label }: {
   showDuration?: boolean;
   label?: string;
 }) {
+  const { t } = useI18n();
   const [, setClock] = useState(() => Date.now());
 
   useEffect(() => {
@@ -36,12 +38,12 @@ export function StatusDot({ run, showDuration = true, label }: {
   }, [run.status, showDuration]);
 
   const detail =
-    run.status === "failed" && run.exitCode !== null ? ` (exit ${run.exitCode})` : "";
+    run.status === "failed" && run.exitCode !== null ? ` (${t("exit {code}", { code: run.exitCode })})` : "";
 
   return (
     <span className={`status ${run.status}`} title={run.displayCommand}>
       <span className="dot" />
-      {label ?? LABELS[run.status]}
+      {label ?? t(LABELS[run.status])}
       {detail}
       {showDuration ? (
         <span style={{ color: "var(--text-faint)" }}>· {formatDuration(runDuration(run))}</span>

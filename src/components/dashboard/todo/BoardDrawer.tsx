@@ -17,6 +17,7 @@ import type { BoardCard } from "./types";
 import { NOTE_COLORS } from "./types";
 import { TodoNote } from "./TodoCard";
 import { formatRelative, noop } from "./utils";
+import { useI18n } from "../../../lib/i18n";
 
 /** Locks the page behind a bottom drawer and wires Escape to close it. */
 export function useDrawerChrome(onClose: () => void) {
@@ -40,6 +41,7 @@ export function BoardDrawer({ cards, onClose, onOpenTodo, onRemoveTodo, onOpenIs
   onOpenIssue: (item: ActivityItem) => void;
   onOpenFolder: (group: RepositoryIssueGroup) => void;
 }) {
+  const { t } = useI18n();
   useDrawerChrome(onClose);
 
   const todos = cards.flatMap((card) => card.kind === "todo" ? [card.item] : []);
@@ -49,23 +51,23 @@ export function BoardDrawer({ cards, onClose, onOpenTodo, onRemoveTodo, onOpenIs
 
   return (
     <div className="issue-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="issue-drawer board-drawer" role="dialog" aria-modal="true" aria-label="Every item on the focus board">
+      <section className="issue-drawer board-drawer" role="dialog" aria-modal="true" aria-label={t("Every item on the focus board")}>
         <header className="issue-drawer-header">
           <div className="issue-drawer-handle" />
           <div className="issue-drawer-heading">
             <span className="issue-drawer-folder"><ListTodo /></span>
             <div>
-              <h2>Focus board</h2>
-              <p>{todos.length} todos · {openTodos} still open · {issues.length + folders.length} repository cards</p>
+              <h2>{t("Focus board")}</h2>
+              <p>{t("{todos} todos · {open} still open · {cards} repository cards", { todos: todos.length, open: openTodos, cards: issues.length + folders.length })}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close board drawer"><X /></Button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("Close board drawer")}><X /></Button>
         </header>
         <div className="issue-drawer-body">
           <div className="board-drawer-content">
             {todos.length ? (
               <section className="board-drawer-section">
-                <h3>Todos</h3>
+                <h3>{t("Todos")}</h3>
                 {/* Same notes as the board, so the drawer is the board unclipped. */}
                 <div className="todo-note-grid board-drawer-notes">
                   {todos.map((item, index) => (
@@ -84,14 +86,14 @@ export function BoardDrawer({ cards, onClose, onOpenTodo, onRemoveTodo, onOpenIs
 
             {folders.length || issues.length ? (
               <section className="board-drawer-section">
-                <h3>Repository issues</h3>
+                <h3>{t("Repository issues")}</h3>
                 <div className="issue-drawer-list">
                   {folders.map((group) => (
                     <button key={group.repository} className="issue-drawer-row" onClick={() => onOpenFolder(group)}>
                       <span className="issue-drawer-state"><FolderOpen /></span>
                       <span className="issue-drawer-content">
                         <strong>{group.repository}</strong>
-                        <span><em>{group.totalCount.toLocaleString()} open issues</em></span>
+                        <span><em>{t("{count} open issues", { count: group.totalCount.toLocaleString() })}</em></span>
                       </span>
                       <LibraryBig className="issue-drawer-external" />
                     </button>
@@ -124,6 +126,7 @@ export function IssueDrawer({ group, onClose, onReport }: {
   onClose: () => void;
   onReport: (error: unknown) => void;
 }) {
+  const { t } = useI18n();
   const [issues, setIssues] = useState(group.issues);
   const [cursor, setCursor] = useState(group.endCursor);
   const [hasNextPage, setHasNextPage] = useState(group.hasNextPage);
@@ -170,15 +173,15 @@ export function IssueDrawer({ group, onClose, onReport }: {
 
   return (
     <div className="issue-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="issue-drawer" role="dialog" aria-modal="true" aria-label={`${group.repository} open issues`}>
+      <section className="issue-drawer" role="dialog" aria-modal="true" aria-label={t("{repo} open issues", { repo: group.repository })}>
         <header className="issue-drawer-header">
           <div className="issue-drawer-handle" />
           <div className="issue-drawer-heading">
             <span className="issue-drawer-folder"><FolderOpen /></span>
-            <div><h2>{group.repository}</h2><p>{group.totalCount.toLocaleString()} open issues · newest activity first</p></div>
+            <div><h2>{group.repository}</h2><p>{t("{count} open issues · newest activity first", { count: group.totalCount.toLocaleString() })}</p></div>
           </div>
           <Button variant="outline" size="sm" onClick={() => openUrl(`https://github.com/${group.repository}/issues`).catch(onReport)}><ExternalLink />GitHub</Button>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close issue drawer"><X /></Button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("Close issue drawer")}><X /></Button>
         </header>
         <div ref={bodyRef} className="issue-drawer-body" onScroll={handleScroll}>
           <div className="issue-drawer-list">
@@ -190,7 +193,7 @@ export function IssueDrawer({ group, onClose, onReport }: {
                   <span>
                     <em>#{item.number}</em>
                     <span>{formatRelative(item.timestamp)}</span>
-                    {item.actor ? <span>by {item.actor}</span> : null}
+                    {item.actor ? <span>{t("by {actor}", { actor: item.actor })}</span> : null}
                     {item.labels?.slice(0, 3).map((label) => <i key={label.name}>{label.name}</i>)}
                   </span>
                 </span>
@@ -202,9 +205,9 @@ export function IssueDrawer({ group, onClose, onReport }: {
           {hasNextPage ? (
             <button className="issue-drawer-load" onClick={() => void loadMore()} disabled={loading}>
               <LoaderCircle className={loading ? "animate-spin" : ""} />
-              {loading ? "Loading more issues…" : "Load more issues"}
+              {loading ? t("Loading more issues…") : t("Load more issues")}
             </button>
-          ) : <div className="issue-drawer-end">All {issues.length.toLocaleString()} issues loaded</div>}
+          ) : <div className="issue-drawer-end">{t("All {count} issues loaded", { count: issues.length.toLocaleString() })}</div>}
         </div>
       </section>
     </div>

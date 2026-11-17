@@ -5,9 +5,11 @@ import { OverviewPanels } from "../components/dashboard/OverviewPanels";
 import { Button } from "../components/ui/button";
 import { TodoBoard } from "../components/dashboard/TodoBoard";
 import { useDevHub } from "../hooks/useDevHub";
+import { useI18n } from "../lib/i18n";
 
 export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => void }) {
   const { projects, runs, ports, openTab, report } = useDevHub();
+  const { t } = useI18n();
 
   const running = runs.filter((run) => run.status === "running");
   const recent = runs.filter((run) => run.status !== "running").slice(0, 6);
@@ -23,14 +25,14 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
 
       <section className="section">
         <h2 className="section-title">
-          Running <span className="rule" />
+          {t("Running")} <span className="rule" />
         </h2>
         {running.length === 0 ? (
           <div className="empty-state" style={{ padding: "28px 24px" }}>
             <p style={{ margin: 0 }}>
-              Nothing is running.{" "}
+              {t("Nothing is running.")}{" "}
               <Button size="sm" onClick={() => onNavigate("projects")}>
-                Go to Projects
+                {t("Go to Projects")}
               </Button>
             </p>
           </div>
@@ -76,7 +78,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
       {recent.length > 0 ? (
         <section className="section">
           <h2 className="section-title">
-            Recent commands <span className="rule" />
+            {t("Recent commands")} <span className="rule" />
           </h2>
           <table className="table">
             <tbody>
@@ -91,7 +93,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <Button size="sm" variant="ghost" onClick={() => openTab(run.runId)}>
-                      Output
+                      {t("Output")}
                     </Button>
                   </td>
                 </tr>

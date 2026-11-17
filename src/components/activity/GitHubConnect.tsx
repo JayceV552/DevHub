@@ -5,6 +5,7 @@ import { api, errorMessage, onGitHubAuth } from "../../lib/api";
 import type { DeviceLogin, GitHubStatus, Settings } from "../../lib/types";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { useI18n } from "../../lib/i18n";
 
 const NEW_GITHUB_APP = "https://github.com/settings/apps/new";
 const NEW_OAUTH_APP = "https://github.com/settings/applications/new";
@@ -18,6 +19,7 @@ export function GitHubConnect({
   onConnected: () => void;
   reconnect?: boolean;
 }) {
+  const { t } = useI18n();
   const [showHelp, setShowHelp] = useState(false);
   const [showOwnApp, setShowOwnApp] = useState(false);
   const [status, setStatus] = useState<GitHubStatus | null>(null);
@@ -53,10 +55,10 @@ export function GitHubConnect({
           onConnected();
           break;
         case "denied":
-          setError("Authorization was declined.");
+          setError(t("Authorization was declined."));
           break;
         case "expired":
-          setError("The code expired. Try again.");
+          setError(t("The code expired. Try again."));
           break;
         case "cancelled":
           break;
@@ -94,7 +96,7 @@ export function GitHubConnect({
     } catch (err) {
       const message = errorMessage(err);
       setError(message.includes("does not recognise this client ID")
-        ? "Sign-in could not start. Check the Client ID or use a personal access token."
+        ? t("Sign-in could not start. Check the Client ID or use a personal access token.")
         : message);
       setBusy(false);
     }
@@ -126,43 +128,43 @@ export function GitHubConnect({
   return (
     <section className="connect-panel">
       <div className="connect-head">
-        <h3>{reconnect ? "Sign in to GitHub again" : "Connect GitHub"}</h3>
+        <h3>{reconnect ? t("Sign in to GitHub again") : t("Connect GitHub")}</h3>
         <p>
           {reconnect
-            ? "Your previous session is no longer valid. Sign in again to continue loading activity."
-            : "Pull requests, issues, discussions and releases from your projects' repositories, in one timeline."}
+            ? t("Your previous session is no longer valid. Sign in again to continue loading activity.")
+            : t("Pull requests, issues, discussions and releases from your projects' repositories, in one timeline.")}
         </p>
       </div>
 
       {login ? (
         <div className="device-login">
-          <p>Enter this code on GitHub — it is already on your clipboard.</p>
+          <p>{t("Enter this code on GitHub — it is already on your clipboard.")}</p>
           <div className="device-code">{login.userCode}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <Button
               size="sm"
               onClick={() => openUrl(login.verificationUri).catch(onReport)}
             >
-              Reopen GitHub ↗
+              {t("Reopen GitHub")} ↗
             </Button>
             <Button size="sm" variant="ghost" onClick={cancel}>
-              Cancel
+              {t("Cancel")}
             </Button>
-            <span className="hint">Waiting for authorization…</span>
+            <span className="hint">{t("Waiting for authorization…")}</span>
           </div>
         </div>
       ) : (
         <>
           {status.clientIdSource === "bundled" && !showOwnApp ? (
             <p className="hint" style={{ fontFamily: "var(--sans)", margin: "0 0 10px" }}>
-              Sign in to read activity from your projects' repositories.{" "}
+              {t("Sign in to read activity from your projects' repositories.")}{" "}
               <button className="link-button" onClick={() => setShowOwnApp(true)}>
-                Use my own GitHub App
+                {t("Use my own GitHub App")}
               </button>
             </p>
           ) : (
             <div className="field">
-              <label htmlFor="client-id">Client ID (GitHub App or OAuth App)</label>
+              <label htmlFor="client-id">{t("Client ID (GitHub App or OAuth App)")}</label>
               <Input
                 id="client-id"
                 data-slot="input"
@@ -172,9 +174,9 @@ export function GitHubConnect({
                 onChange={(event) => saveClientId(event.target.value)}
               />
               <span className="hint">
-                Register a free GitHub App with read-only repository permissions.{" "}
+                {t("Register a free GitHub App with read-only repository permissions.")}{" "}
                 <button className="link-button" onClick={() => setShowHelp((v) => !v)}>
-                  {showHelp ? "Hide setup instructions" : "How to create one"}
+                  {showHelp ? t("Hide setup instructions") : t("How to create one")}
                 </button>
               </span>
             </div>
@@ -182,36 +184,35 @@ export function GitHubConnect({
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
             <Button onClick={signIn} disabled={busy}>
-              {busy ? "Opening GitHub…" : "Sign in with GitHub"}
+              {busy ? t("Opening GitHub…") : t("Sign in with GitHub")}
             </Button>
             <Button
               variant="ghost"
               onClick={() => setShowPat((v) => !v)}
               style={{ color: "var(--text-faint)" }}
             >
-              {showPat ? "Hide personal access token" : "Or use a personal access token"}
+              {showPat ? t("Hide personal access token") : t("Or use a personal access token")}
             </Button>
           </div>
 
           {showPat ? (
             <div className="field" style={{ marginTop: 14 }}>
-              <label htmlFor="pat-input">Personal Access Token (classic or fine-grained)</label>
+              <label htmlFor="pat-input">{t("Personal Access Token (classic or fine-grained)")}</label>
               <div style={{ display: "flex", gap: 8 }}>
                 <Input
                   id="pat-input"
                   data-slot="input"
                   type="password"
-                  placeholder="ghp_… or github_pat_…"
+                  placeholder={t("ghp_… or github_pat_…")}
                   value={pat}
                   onChange={(event) => setPat(event.target.value)}
                 />
                 <Button onClick={savePat} disabled={busy || !pat.trim()}>
-                  Save token
+                  {t("Save token")}
                 </Button>
               </div>
               <span className="hint">
-                Needs <code>repo</code> scope (or fine-grained Read-only access to Issues, Pull
-                requests, Discussions and Contents).
+                {t("Needs the repo scope (or fine-grained read-only access to Issues, Pull requests, Discussions and Contents).")}
               </span>
             </div>
           ) : null}
@@ -227,19 +228,20 @@ export function GitHubConnect({
 }
 
 function RegistrationHelp({ onReport }: { onReport: (err: unknown) => void }) {
+  const { t } = useI18n();
   const open = (url: string) => openUrl(url).catch(onReport);
 
   return (
     <div className="setup-help">
       <div className="setup-option">
         <h4>
-          GitHub App <span className="tag service">recommended</span>
+          GitHub App <span className="tag service">{t("recommended")}</span>
         </h4>
-        <p>Read-only access to just what the feed shows. Tokens last 8 hours and refresh here.</p>
+        <p>{t("Read-only access to just what the feed shows. Tokens last 8 hours and refresh here.")}</p>
         <ol>
           <li>
             <button className="link-button" onClick={() => open(NEW_GITHUB_APP)}>
-              Open the registration form ↗
+              {t("Open the registration form")} ↗
             </button>{" "}
             (Settings → Developer settings → GitHub Apps → New GitHub App)
           </li>
@@ -277,11 +279,11 @@ function RegistrationHelp({ onReport }: { onReport: (err: unknown) => void }) {
 
       <div className="setup-option">
         <h4>OAuth App</h4>
-        <p>Quicker to register and the token never expires, but the scope is all-or-nothing.</p>
+        <p>{t("Quicker to register and the token never expires, but the scope is all-or-nothing.")}</p>
         <ol>
           <li>
             <button className="link-button" onClick={() => open(NEW_OAUTH_APP)}>
-              Open the registration form ↗
+              {t("Open the registration form")} ↗
             </button>
           </li>
           <li>

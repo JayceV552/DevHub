@@ -16,6 +16,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { WorkspaceGroupSelect } from "./WorkspaceGroupSelect";
+import { translate, useI18n } from "../../lib/i18n";
 
 export function AddProjectDialog({
   onClose,
@@ -24,6 +25,7 @@ export function AddProjectDialog({
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const { t } = useI18n();
   const [scan, setScan] = useState<ProjectScan | null>(null);
   const [name, setName] = useState("");
   const [group, setGroup] = useState("");
@@ -37,7 +39,7 @@ export function AddProjectDialog({
     setError(null);
     setBusy(true);
     try {
-      const picked = await open({ directory: true, multiple: false, title: "Select project folder" });
+      const picked = await open({ directory: true, multiple: false, title: translate("Select project folder") });
       if (typeof picked !== "string") {
         if (!scan) onClose();
         return;
@@ -99,11 +101,11 @@ export function AddProjectDialog({
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="add-project-dialog sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add project</DialogTitle>
+          <DialogTitle>{t("Add project")}</DialogTitle>
           <DialogDescription>
             {scan
-              ? "Review what DevHub found. Uncheck anything you don't want."
-              : "Pick a folder — DevHub reads its scripts and git remote."}
+              ? t("Review what DevHub found. Uncheck anything you don't want.")
+              : t("Pick a folder — DevHub reads its scripts and git remote.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,7 +114,7 @@ export function AddProjectDialog({
 
           {!scan ? (
             <Button onClick={() => void pickFolder()} disabled={busy}>
-              {busy ? "Scanning…" : "Choose another folder…"}
+              {busy ? t("Scanning…") : t("Choose another folder…")}
             </Button>
           ) : (
             <>
@@ -123,26 +125,26 @@ export function AddProjectDialog({
                   <span>{scan.path}</span>
                 </div>
                 <Button variant="ghost" size="xs" onClick={() => void pickFolder()} disabled={busy}>
-                  Change folder
+                  {t("Change folder")}
                 </Button>
               </div>
 
               <div className="add-project-fields">
                 <div className="field">
-                  <label htmlFor="project-name">Project name</label>
+                  <label htmlFor="project-name">{t("Project name")}</label>
                   <Input id="project-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <div className="field">
-                  <label htmlFor="project-group">Workspace group <span className="label-optional">Optional</span></label>
+                  <label htmlFor="project-group">{t("Workspace group")} <span className="label-optional">{t("Optional")}</span></label>
                   <WorkspaceGroupSelect
                     id="project-group"
                     value={group}
                     onChange={setGroup}
-                    placeholder="e.g. DayFlow"
+                    placeholder={t("e.g. DayFlow")}
                   />
                 </div>
                 <div className="field add-project-repository">
-                  <label htmlFor="project-repo">GitHub repository <span className="label-optional">Optional</span></label>
+                  <label htmlFor="project-repo">{t("GitHub repository")} <span className="label-optional">{t("Optional")}</span></label>
                   <Input
                     id="project-repo"
                     type="text"
@@ -150,16 +152,16 @@ export function AddProjectDialog({
                     onChange={(e) => setRepository(e.target.value)}
                     placeholder="owner/repository"
                   />
-                  {scan.branch ? <span className="hint">Current branch: {scan.branch}</span> : null}
+                  {scan.branch ? <span className="hint">{t("Current branch: {branch}", { branch: scan.branch })}</span> : null}
                 </div>
               </div>
 
               <section className="add-project-commands">
                 <div className="add-project-section-head">
                   <div>
-                    <strong>Commands</strong>
+                    <strong>{t("Commands")}</strong>
                     <span>
-                      {selected.size} of {Object.keys(scan.commands).length} selected
+                      {t("{selected} of {total} selected", { selected: selected.size, total: Object.keys(scan.commands).length })}
                       {scan.detectedFrom.length > 0 ? ` · ${scan.detectedFrom.join(", ")}` : ""}
                     </span>
                   </div>
@@ -171,13 +173,13 @@ export function AddProjectDialog({
                         ? new Set()
                         : new Set(Object.keys(scan.commands)))}
                     >
-                      {selected.size === Object.keys(scan.commands).length ? "Clear all" : "Select all"}
+                      {selected.size === Object.keys(scan.commands).length ? t("Clear all") : t("Select all")}
                     </button>
                   ) : null}
                 </div>
                 {Object.keys(scan.commands).length === 0 ? (
                   <div className="add-project-empty">
-                    Nothing detected. You can add commands by hand in config.toml.
+                    {t("Nothing detected. You can add commands by hand in config.toml.")}
                   </div>
                 ) : (
                   <div className="add-project-command-list">
@@ -202,10 +204,10 @@ export function AddProjectDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button onClick={submit} disabled={!scan || busy}>
-            {busy ? "Adding…" : "Add project"}
+            {busy ? t("Adding…") : t("Add project")}
           </Button>
         </DialogFooter>
       </DialogContent>

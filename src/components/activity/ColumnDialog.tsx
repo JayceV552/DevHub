@@ -14,12 +14,14 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { useI18n } from "../../lib/i18n";
 
 export function ColumnDialog({ column, onClose, onSaved }: {
   column: ActivityColumn | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const initialValue = column?.filters.users?.[0]
     ? `https://github.com/${column.filters.users[0]}`
     : column?.filters.repositories[0]
@@ -32,7 +34,7 @@ export function ColumnDialog({ column, onClose, onSaved }: {
   const submit = async () => {
     const target = normalizeGitHubTarget(targetInput);
     if (!target) {
-      setError("Enter a GitHub profile URL or a repository as owner/repository.");
+      setError(t("Enter a GitHub profile URL or a repository as owner/repository."));
       return;
     }
 
@@ -44,7 +46,7 @@ export function ColumnDialog({ column, onClose, onSaved }: {
       repositories: target.kind === "repository" ? [target.value] : [],
       users: target.kind === "user" ? [target.value] : [],
     };
-    const title = target.kind === "repository" ? target.value.split("/")[1] : `${target.value} activity`;
+    const title = target.kind === "repository" ? target.value.split("/")[1] : t("{name} activity", { name: target.value });
     try {
       if (column) await api.updateColumn(column.id, title, nextFilters);
       else await api.addColumn(title, nextFilters);
@@ -60,9 +62,9 @@ export function ColumnDialog({ column, onClose, onSaved }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="repository-dialog sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{column ? "Edit activity column" : "Add activity column"}</DialogTitle>
+          <DialogTitle>{column ? t("Edit activity column") : t("Add activity column")}</DialogTitle>
           <DialogDescription>
-            Follow a repository, or paste a user's GitHub homepage to see their public activity.
+            {t("Follow a repository, or paste a user's GitHub homepage to see their public activity.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -70,7 +72,7 @@ export function ColumnDialog({ column, onClose, onSaved }: {
           <Link2 aria-hidden="true" />
           <Input
             autoFocus
-            aria-label="GitHub repository or user profile"
+            aria-label={t("GitHub repository or user profile")}
             value={targetInput}
             placeholder="https://github.com/JayceV552/DevHub"
             onChange={(event) => setTargetInput(event.target.value)}
@@ -82,13 +84,13 @@ export function ColumnDialog({ column, onClose, onSaved }: {
             }}
           />
         </div>
-        <p className="repository-example">Examples: <code>dayflow-js/calendar</code> or <code>https://github.com/JayceV552</code>.</p>
+        <p className="repository-example">{t("Examples:")} <code>dayflow-js/calendar</code> {t("or")} <code>https://github.com/JayceV552</code>.</p>
         {error ? <div className="repository-dialog-error">{error}</div> : null}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("Cancel")}</Button>
           <Button onClick={submit} disabled={busy || !targetInput.trim()}>
-            {busy ? "Saving…" : column ? "Save" : "Add column"}
+            {busy ? t("Saving…") : column ? t("Save") : t("Add column")}
           </Button>
         </DialogFooter>
       </DialogContent>

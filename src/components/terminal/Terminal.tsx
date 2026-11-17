@@ -7,6 +7,7 @@ import { outputStore } from "../../lib/outputStore";
 import type { OutputLine, Run } from "../../lib/types";
 import { StatusDot } from "../common/StatusDot";
 import { Button } from "../ui/button";
+import { useI18n } from "../../lib/i18n";
 
 const STICK_THRESHOLD = 40;
 
@@ -21,6 +22,7 @@ export function Terminal({
   onRestart: (runId: string) => void;
   onReport: (err: unknown) => void;
 }) {
+  const { t } = useI18n();
   const lines = useSyncExternalStore(
     (listener) => outputStore.subscribe(run.runId, listener),
     () => outputStore.get(run.runId),
@@ -75,14 +77,14 @@ export function Terminal({
         <span className="spacer" />
         {running ? (
           <Button variant="outline" size="xs" onClick={() => onStop(run.runId)}>
-            Stop
+            {t("Stop")}
           </Button>
         ) : null}
         <Button variant="outline" size="xs" onClick={() => onRestart(run.runId)}>
-          {running ? "Restart" : "Run again"}
+          {running ? t("Restart") : t("Run again")}
         </Button>
         <Button size="xs" variant="ghost" onClick={copyAll} disabled={lines.length === 0}>
-          Copy
+          {t("Copy")}
         </Button>
         <Button
           size="xs"
@@ -90,14 +92,14 @@ export function Terminal({
           onClick={() => outputStore.replace(run.runId, [])}
           disabled={lines.length === 0}
         >
-          Clear
+          {t("Clear")}
         </Button>
       </div>
 
       <div className="terminal-body" ref={bodyRef} onScroll={handleScroll}>
         {lines.length === 0 ? (
           <div className="terminal-empty">
-            {running ? "Waiting for output…" : "No output captured."}
+            {running ? t("Waiting for output…") : t("No output captured.")}
           </div>
         ) : (
           lines.map((line) => <Line key={line.seq} line={line} onReport={onReport} />)

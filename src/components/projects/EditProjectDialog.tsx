@@ -14,6 +14,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { WorkspaceGroupSelect } from "./WorkspaceGroupSelect";
+import { translate, useI18n } from "../../lib/i18n";
 
 interface CommandDraft {
   key: string;
@@ -31,6 +32,7 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(project.name);
   const [repository, setRepository] = useState(project.repository ?? "");
   const [group, setGroup] = useState(project.group ?? "");
@@ -70,7 +72,7 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
     setError(null);
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError("Project name is required.");
+      setError(t("Project name is required."));
       return;
     }
 
@@ -79,8 +81,8 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
       for (const command of commands) {
         const commandName = command.name.trim();
         const program = command.program.trim();
-        if (!commandName || !program) throw new Error("Every script needs a name and program.");
-        if (nextCommands[commandName]) throw new Error(`Script name “${commandName}” is duplicated.`);
+        if (!commandName || !program) throw new Error(t("Every script needs a name and program."));
+        if (nextCommands[commandName]) throw new Error(t("Script name “{name}” is duplicated.", { name: commandName }));
         nextCommands[commandName] = {
           program,
           args: parseArguments(command.args),
@@ -115,8 +117,8 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="project-editor-dialog sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Edit project</DialogTitle>
-          <DialogDescription>Change project details and add, remove, or edit runnable scripts.</DialogDescription>
+          <DialogTitle>{t("Edit project")}</DialogTitle>
+          <DialogDescription>{t("Change project details and add, remove, or edit runnable scripts.")}</DialogDescription>
         </DialogHeader>
 
         <div className="dialog-body">
@@ -124,47 +126,47 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
 
           <div className="project-editor-fields">
             <div className="field">
-              <label htmlFor="edit-project-name">Name</label>
+              <label htmlFor="edit-project-name">{t("Name")}</label>
               <Input id="edit-project-name" type="text" value={name} onChange={(event) => setName(event.target.value)} />
             </div>
             <div className="field">
-              <label htmlFor="edit-project-group">Workspace group</label>
+              <label htmlFor="edit-project-group">{t("Workspace group")}</label>
               <WorkspaceGroupSelect
                 id="edit-project-group"
                 value={group}
-                placeholder="Optional"
+                placeholder={t("Optional")}
                 onChange={setGroup}
               />
             </div>
           </div>
 
           <div className="field">
-            <label htmlFor="edit-project-repository">GitHub repository</label>
+            <label htmlFor="edit-project-repository">{t("GitHub repository")}</label>
             <Input id="edit-project-repository" type="text" value={repository} placeholder="owner/repository" onChange={(event) => setRepository(event.target.value)} />
             <span className="hint">{project.path}</span>
           </div>
 
           <div className="project-editor-heading">
             <div>
-              <strong>Run scripts</strong>
+              <strong>{t("Run scripts")}</strong>
               <span>{commands.length} configured</span>
             </div>
             <Button variant="outline" size="xs" onClick={() => void detect()} disabled={detecting}>
               <RefreshCw className={detecting ? "animate-spin" : ""} />
-              Detect new
+              {t("Detect new")}
             </Button>
             <Button variant="outline" size="xs" onClick={() => setCommands((current) => [...current, emptyDraft()])}>
-              <Plus />Add script
+              <Plus />{t("Add script")}
             </Button>
           </div>
 
           <div className="command-editor-list">
             {commands.length === 0 ? (
-              <div className="command-editor-empty">No scripts configured. Add one to run it from the project card.</div>
+              <div className="command-editor-empty">{t("No scripts configured. Add one to run it from the project card.")}</div>
             ) : commands.map((command) => (
               <div className="command-editor-row" key={command.key}>
                 <div className="field command-name-field">
-                  <label>Script name</label>
+                  <label>{t("Script name")}</label>
                   <Input
                     type="text"
                     value={command.name}
@@ -179,18 +181,18 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
                   />
                 </div>
                 <div className="field command-program-field">
-                  <label>Program</label>
+                  <label>{t("Program")}</label>
                   <Input type="text" value={command.program} placeholder="pnpm" onChange={(event) => patchCommand(command.key, { program: event.target.value })} />
                 </div>
                 <div className="field command-args-field">
-                  <label>Arguments</label>
+                  <label>{t("Arguments")}</label>
                   <Input type="text" value={command.args} placeholder="dev --host" onChange={(event) => patchCommand(command.key, { args: event.target.value })} />
                 </div>
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   className="command-remove"
-                  aria-label={`Remove ${command.name || "script"}`}
+                  aria-label={t("Remove {item}", { item: command.name || t("script") })}
                   onClick={() => setCommands((current) => current.filter((item) => item.key !== command.key))}
                 >
                   <Trash2 />
@@ -201,8 +203,8 @@ export function EditProjectDialog({ project, onClose, onSaved }: {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={() => void submit()} disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("Cancel")}</Button>
+          <Button onClick={() => void submit()} disabled={busy}>{busy ? t("Saving…") : t("Save changes")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -266,7 +268,7 @@ function parseArguments(input: string): string[] {
   }
 
   if (escaped) current += "\\";
-  if (quote) throw new Error("An argument has an unmatched quote.");
+  if (quote) throw new Error(translate("An argument has an unmatched quote."));
   push();
   return args;
 }

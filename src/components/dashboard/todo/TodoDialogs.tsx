@@ -15,11 +15,13 @@ import { Input } from "../../ui/input";
 import { StepRows } from "./StepRows";
 import type { StepDraft } from "./types";
 import { normalizeRepository } from "./utils";
+import { translate, useI18n } from "../../../lib/i18n";
 
 export function TodoDialog({ onClose, onSaved }: {
   onClose: () => void;
   onSaved: (item: TodoItem) => void;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [steps, setSteps] = useState<StepDraft[]>([]);
   const [busy, setBusy] = useState(false);
@@ -44,16 +46,16 @@ export function TodoDialog({ onClose, onSaved }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="todo-dialog sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Pin a new todo</DialogTitle>
-          <DialogDescription>Add a personal task to your Overview board.</DialogDescription>
+          <DialogTitle>{t("Pin a new todo")}</DialogTitle>
+          <DialogDescription>{t("Add a personal task to your Overview board.")}</DialogDescription>
         </DialogHeader>
         <div className="dialog-body">
           <div className="field">
-            <label htmlFor="todo-title">Title</label>
-            <Input id="todo-title" autoFocus value={title} placeholder="What needs to be done?" onChange={(event) => setTitle(event.target.value)} />
+            <label htmlFor="todo-title">{t("Title")}</label>
+            <Input id="todo-title" autoFocus value={title} placeholder={t("What needs to be done?")} onChange={(event) => setTitle(event.target.value)} />
           </div>
           <div className="field">
-            <label>Checklist <span className="label-optional">Optional</span></label>
+            <label>{t("Checklist")} <span className="label-optional">{t("Optional")}</span></label>
             <StepRows
               steps={steps}
               setSteps={setSteps}
@@ -65,9 +67,9 @@ export function TodoDialog({ onClose, onSaved }: {
           {error ? <div className="dialog-error">{error}</div> : null}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("Cancel")}</Button>
           <Button onClick={() => void submit()} disabled={busy || !title.trim()}>
-            {busy ? "Saving…" : "Add todo"}
+            {busy ? t("Saving…") : t("Add todo")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -81,6 +83,7 @@ export function RepositoryDialog({ current, suggestions, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const [repositories, setRepositories] = useState(current);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -90,7 +93,7 @@ export function RepositoryDialog({ current, suggestions, onClose, onSaved }: {
   const add = (value = input) => {
     const slug = normalizeRepository(value);
     if (!slug) {
-      setError("Enter a repository as owner/repository or paste its GitHub URL.");
+      setError(translate("Enter a repository as owner/repository or paste its GitHub URL."));
       return;
     }
     setRepositories((items) => items.includes(slug) ? items : [...items, slug]);
@@ -113,38 +116,38 @@ export function RepositoryDialog({ current, suggestions, onClose, onSaved }: {
     <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
       <DialogContent className="todo-repository-dialog sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Watched repositories</DialogTitle>
-          <DialogDescription>Latest open issues from these repositories will appear on your Todo board.</DialogDescription>
+          <DialogTitle>{t("Watched repositories")}</DialogTitle>
+          <DialogDescription>{t("Latest open issues from these repositories will appear on your Todo board.")}</DialogDescription>
         </DialogHeader>
         <div className="dialog-body">
           <div className="todo-repository-input">
             <Input
               autoFocus
               value={input}
-              placeholder="owner/repository or GitHub URL"
+              placeholder={t("owner/repository or GitHub URL")}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add(); } }}
             />
-            <Button variant="outline" onClick={() => add()} disabled={!input.trim()}>Add</Button>
+            <Button variant="outline" onClick={() => add()} disabled={!input.trim()}>{t("Add")}</Button>
           </div>
           {repositories.length ? (
             <div className="todo-repository-list">
               {repositories.map((slug) => (
-                <div key={slug}><GitBranch /><span>{slug}</span><button onClick={() => setRepositories((items) => items.filter((item) => item !== slug))} aria-label={`Stop watching ${slug}`}><X /></button></div>
+                <div key={slug}><GitBranch /><span>{slug}</span><button onClick={() => setRepositories((items) => items.filter((item) => item !== slug))} aria-label={t("Stop watching {repo}", { repo: slug })}><X /></button></div>
               ))}
             </div>
-          ) : <div className="todo-repository-empty">No repositories watched yet.</div>}
+          ) : <div className="todo-repository-empty">{t("No repositories watched yet.")}</div>}
           {available.length ? (
             <div className="todo-repository-suggestions">
-              <span>From your projects</span>
+              <span>{t("From your projects")}</span>
               <div>{available.slice(0, 6).map((slug) => <button key={slug} onClick={() => add(slug)}><Plus />{slug}</button>)}</div>
             </div>
           ) : null}
           {error ? <div className="dialog-error">{error}</div> : null}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={() => void save()} disabled={busy}>{busy ? "Saving…" : "Save repositories"}</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("Cancel")}</Button>
+          <Button onClick={() => void save()} disabled={busy}>{busy ? t("Saving…") : t("Save repositories")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

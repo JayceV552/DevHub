@@ -21,6 +21,7 @@ import type { PortEntry, ProjectView, Run } from "../../lib/types";
 import { formatDuration, runDuration } from "../common/StatusDot";
 import { Button } from "../ui/button";
 import { formatAgo, monogram, projectAvatarColor, shortenPath, StatusPill, type ProjectStatus } from "./projectStatus";
+import { useI18n } from "../../lib/i18n";
 
 export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
   project: ProjectView;
@@ -29,6 +30,7 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const { t } = useI18n();
   const { ports, start, stop, openTab, runFor, report } = useDevHub();
   const [closing, setClosing] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -67,7 +69,7 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
   };
 
   return (
-    <aside className={`project-detail ${closing ? "is-closing" : ""}`} aria-label={`${project.name} details`}>
+    <aside className={`project-detail ${closing ? "is-closing" : ""}`} aria-label={t("{name} details", { name: project.name })}>
       <header className="project-detail-head">
         <div className="project-detail-title">
           <span
@@ -82,10 +84,10 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
             <CopyPath path={project.path} onError={report} />
           </div>
           <div className="project-detail-actions">
-            <Button variant="ghost" size="icon-sm" title="Edit project and scripts" aria-label="Edit project" onClick={onEdit}>
+            <Button variant="ghost" size="icon-sm" title={t("Edit project and scripts")} aria-label={t("Edit project")} onClick={onEdit}>
               <Pencil />
             </Button>
-            <Button variant="ghost" size="icon-sm" title="Close" aria-label="Close project details" onClick={handleClose}>
+            <Button variant="ghost" size="icon-sm" title={t("Close")} aria-label={t("Close project details")} onClick={handleClose}>
               <X />
             </Button>
           </div>
@@ -93,7 +95,7 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
         <div className="project-detail-meta">
           <StatusPill status={status} runs={runs} />
           {project.branch ? (
-            <span className="project-meta-pill" title="Current branch">
+            <span className="project-meta-pill" title={t("Current branch")}>
               <GitBranch aria-hidden="true" /><span>{project.branch}</span>
             </span>
           ) : null}
@@ -101,7 +103,7 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
             <a
               className="project-meta-pill is-link"
               href={repositoryUrl}
-              title={`Open ${project.repository} on GitHub`}
+              title={t("Open {title} on GitHub", { title: project.repository ?? "" })}
               onClick={(event) => {
                 event.preventDefault();
                 open(repositoryUrl);
@@ -117,18 +119,18 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
         {project.pathExists ? null : (
           <p className="project-detail-alert">
             <TriangleAlert aria-hidden="true" />
-            <span>This folder no longer exists, so its scripts cannot run. If it moved, remove the project and add it again from its new location.</span>
+            <span>{t("This folder no longer exists, so its scripts cannot run. If it moved, remove the project and add it again from its new location.")}</span>
           </p>
         )}
 
         <section className="project-detail-section">
           <header>
-            <h3>Scripts</h3>
+            <h3>{t("Scripts")}</h3>
             <span>{commandIds.length}</span>
           </header>
           {commandIds.length === 0 ? (
             <p className="project-detail-empty">
-              No scripts configured. <button type="button" className="link-button" onClick={onEdit}>Add one</button>
+              {t("No scripts configured.")} <button type="button" className="link-button" onClick={onEdit}>{t("Add one")}</button>
             </p>
           ) : (
             <div className="project-script-list">
@@ -150,7 +152,7 @@ export function ProjectDetail({ project, runs, status, onClose, onEdit }: {
         {projectPorts.length > 0 ? (
           <section className="project-detail-section">
             <header>
-              <h3>Ports</h3>
+              <h3>{t("Ports")}</h3>
               <span>{projectPorts.length}</span>
             </header>
             <div className="project-port-list">
@@ -186,6 +188,7 @@ function ScriptRow({ project, commandId, run, onStart, onStop, onShowOutput }: {
   onStop: (runId: string) => void;
   onShowOutput: (runId: string) => void;
 }) {
+  const { t } = useI18n();
   const spec = project.commands[commandId];
   const command = [spec.program, ...spec.args].join(" ");
   const isRunning = run?.status === "running";
@@ -205,8 +208,8 @@ function ScriptRow({ project, commandId, run, onStart, onStop, onShowOutput }: {
         variant="outline"
         size="icon-sm"
         className="project-script-toggle"
-        title={isRunning ? `Stop ${commandId}` : `Run ${commandId}`}
-        aria-label={isRunning ? `Stop ${commandId}` : `Run ${commandId}`}
+        title={isRunning ? t("Stop {target}", { target: commandId }) : t("Run {script}", { script: commandId })}
+        aria-label={isRunning ? t("Stop {target}", { target: commandId }) : t("Run {script}", { script: commandId })}
         disabled={!isRunning && !project.pathExists}
         onClick={() => (run && isRunning ? onStop(run.runId) : onStart())}
       >
@@ -230,8 +233,8 @@ function ScriptRow({ project, commandId, run, onStart, onStop, onShowOutput }: {
           <Button
             variant="ghost"
             size="icon-xs"
-            title="Show output"
-            aria-label={`Show ${commandId} output`}
+            title={t("Show output")}
+            aria-label={t("Show {script} output", { script: commandId })}
             onClick={() => onShowOutput(run.runId)}
           >
             <SquareTerminal />
@@ -243,21 +246,23 @@ function ScriptRow({ project, commandId, run, onStart, onStop, onShowOutput }: {
 }
 
 function RunState({ run }: { run: Run }) {
+  const { t } = useI18n();
   const duration = formatDuration(runDuration(run));
   const label = run.status === "running"
     ? duration
     : run.status === "failed"
-      ? `exit ${run.exitCode ?? "?"}`
-      : run.status === "succeeded" ? "passed" : "stopped";
+      ? t("exit {code}", { code: run.exitCode ?? "?" })
+      : run.status === "succeeded" ? t("passed") : t("stopped");
 
   return (
-    <span className={`project-run-state is-${run.status}`} title={`Started ${formatAgo(run.startedAt)} · ran ${duration}`}>
+    <span className={`project-run-state is-${run.status}`} title={t("Started {ago} · ran {duration}", { ago: formatAgo(run.startedAt), duration })}>
       {label}
     </span>
   );
 }
 
 function CopyPath({ path, onError }: { path: string; onError: (err: unknown) => void }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -270,7 +275,7 @@ function CopyPath({ path, onError }: { path: string; onError: (err: unknown) => 
     <button
       type="button"
       className={`project-detail-path ${copied ? "is-copied" : ""}`}
-      title={copied ? "Copied" : `Copy ${path}`}
+      title={copied ? t("Copied") : t("Copy {path}", { path })}
       onClick={() => navigator.clipboard.writeText(path).then(() => setCopied(true), onError)}
     >
       <span>{shortenPath(path)}</span>

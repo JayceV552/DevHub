@@ -12,18 +12,20 @@ import type { ActivityItem, RepositoryIssueGroup } from "../../../lib/types";
 import type { NoteColor } from "./types";
 import { NOTE_COLORS } from "./types";
 import { formatRelative } from "./utils";
+import { useI18n } from "../../../lib/i18n";
 
 export function BoardOverflowNote({ hidden, total, onOpen }: {
   hidden: number;
   total: number;
   onOpen: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <button className="todo-note todo-overflow-note" onClick={onOpen}>
       <span className="todo-note-tape" />
       <span className="todo-overflow-count">+{hidden}</span>
-      <strong>View all</strong>
-      <small>{total} items on this board</small>
+      <strong>{t("View all")}</strong>
+      <small>{t("{count} items on this board", { count: total })}</small>
       <span className="todo-overflow-icon"><LayoutGrid /></span>
     </button>
   );
@@ -34,6 +36,7 @@ export function IssueNote({ item, color, onOpen }: {
   color: NoteColor;
   onOpen: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <article className={`todo-note todo-issue-note is-${color}`}>
       <span className="todo-note-tape" />
@@ -43,7 +46,7 @@ export function IssueNote({ item, color, onOpen }: {
           <strong>{item.repository}</strong>
           <span>#{item.number} · {formatRelative(item.timestamp)}</span>
         </div>
-        <button className="todo-note-open" onClick={onOpen} aria-label={`Open ${item.title} on GitHub`}><ExternalLink /></button>
+        <button className="todo-note-open" onClick={onOpen} aria-label={t("Open {title} on GitHub", { title: item.title })}><ExternalLink /></button>
       </header>
       <button className="todo-issue-title" onClick={onOpen}>{item.title}</button>
       <footer>
@@ -60,13 +63,14 @@ export function IssueFolder({ group, expanded, onToggle }: {
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <article className={`todo-issue-folder ${expanded ? "is-expanded" : ""}`}>
       <button
         className="todo-folder-main"
         onClick={onToggle}
         aria-expanded={expanded}
-        aria-label={`Preview ${group.totalCount} issues from ${group.repository}`}
+        aria-label={t("Preview {count} issues from {repo}", { count: group.totalCount, repo: group.repository })}
       >
         <span className="todo-folder-art" aria-hidden="true">
           <svg viewBox="0 0 300 250" preserveAspectRatio="none" focusable="false">
@@ -84,7 +88,7 @@ export function IssueFolder({ group, expanded, onToggle }: {
           </svg>
         </span>
         <span className="todo-folder-copy">
-          <small>{group.totalCount.toLocaleString()} Items</small>
+          <small>{t("{count} items", { count: group.totalCount.toLocaleString() })}</small>
           <strong>{group.repository}</strong>
         </span>
         <span className="todo-folder-library" aria-hidden="true"><Book /></span>
@@ -100,19 +104,20 @@ export function IssueFolderPreview({ group, closing, onClose, onOpenDrawer, onOp
   onOpenDrawer: () => void;
   onOpenIssue: (item: ActivityItem) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <section className={`todo-folder-stage ${closing ? "is-closing" : ""}`} aria-label={`Latest issues from ${group.repository}`}>
+    <section className={`todo-folder-stage ${closing ? "is-closing" : ""}`} aria-label={t("Latest issues from {repo}", { repo: group.repository })}>
       <header className="todo-folder-stage-header">
         <div className="todo-folder-stage-heading">
           <span><FolderOpen /></span>
           <div>
             <strong>{group.repository}</strong>
-            <small>{group.totalCount.toLocaleString()} open items · newest first</small>
+            <small>{t("{count} open items · newest first", { count: group.totalCount.toLocaleString() })}</small>
           </div>
         </div>
         <div className="todo-folder-stage-actions">
-          <button onClick={onOpenDrawer}><LibraryBig />View all</button>
-          <button onClick={onClose} aria-label={`Close ${group.repository} preview`}><X /></button>
+          <button onClick={onOpenDrawer}><LibraryBig />{t("View all")}</button>
+          <button onClick={onClose} aria-label={t("Close {repo} preview", { repo: group.repository })}><X /></button>
         </div>
       </header>
       <div className="todo-folder-preview-grid">
@@ -131,7 +136,7 @@ export function IssueFolderPreview({ group, closing, onClose, onOpenDrawer, onOp
             </span>
             <strong>{item.title}</strong>
             <span className="todo-folder-preview-detail">
-              <span>{item.actor ? `by ${item.actor}` : "GitHub"}</span>
+              <span>{item.actor ? t("by {actor}", { actor: item.actor }) : "GitHub"}</span>
               {item.commentCount ? <small><MessageCircle />{item.commentCount}</small> : null}
             </span>
           </button>

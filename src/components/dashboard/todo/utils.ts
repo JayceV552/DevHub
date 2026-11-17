@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from "react";
 import type { TodoItem, TodoStep, TodoStepInput } from "../../../lib/types";
 import type { StepDraft } from "./types";
+import { translate } from "../../../lib/i18n";
 
 /** Reads the column count the grid actually resolved to, and follows resizes. */
 export function useGridColumns(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
@@ -74,11 +75,11 @@ export function normalizeRepository(input: string): string | null {
 export function formatRelative(value: string): string {
   const elapsed = Date.now() - Date.parse(value);
   const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return translate("now");
+  if (minutes < 60) return translate("{n}m ago", { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return translate("{n}h ago", { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 14) return `${days}d ago`;
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (days < 14) return translate("{n}d ago", { n: days });
+  return new Date(value).toLocaleDateString(translate("en-US"), { month: "short", day: "numeric" });
 }

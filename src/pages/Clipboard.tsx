@@ -11,10 +11,12 @@ import { useDevHub } from "../hooks/useDevHub";
 import { api, onClipboardChange } from "../lib/api";
 import { highlightCode } from "../lib/codeHighlight";
 import type { ClipboardEntry, ClipboardSnapshot } from "../lib/types";
+import { translate, useI18n } from "../lib/i18n";
 
 type ClipboardFilter = "all" | "text" | "image" | "file" | "code";
 
 export function ClipboardPage() {
+  const { t } = useI18n();
   const { report } = useDevHub();
   const [snapshot, setSnapshot] = useState<ClipboardSnapshot | null>(null);
   const [filter, setFilter] = useState<ClipboardFilter>("all");
@@ -76,7 +78,7 @@ export function ClipboardPage() {
   };
 
   const clear = async () => {
-    if (!window.confirm("Clear all clipboard history? This cannot be undone.")) return;
+    if (!window.confirm(t("Clear all clipboard history? This cannot be undone."))) return;
     try {
       await api.clearClipboardHistory();
       refresh();
@@ -107,41 +109,41 @@ export function ClipboardPage() {
     openUrl(entry.content).catch(report);
   };
 
-  if (!snapshot) return <div className="spinner-page">Loading clipboard…</div>;
+  if (!snapshot) return <div className="spinner-page">{t("Loading clipboard…")}</div>;
 
   return (
     <div className="clipboard-page">
       <PageHeader
         className="clipboard-header"
-        title="Clipboard"
+        title={t("Clipboard")}
         subtitle={(
           <>
-            {snapshot.entries.length} items · kept {snapshot.retentionDays} days · {formatBytes(snapshot.totalBytes)} of {formatBytes(snapshot.capBytes)}
+            {t("{count} items · kept {days} days · {used} of {cap}", { count: snapshot.entries.length, days: snapshot.retentionDays, used: formatBytes(snapshot.totalBytes), cap: formatBytes(snapshot.capBytes) })}
           </>
         )}
         actions={<div className="clipboard-toolbar">
           <label className="toolbar-search" htmlFor="clipboard-search">
             <Search aria-hidden="true" />
-            <Input id="clipboard-search" type="search" value={query} placeholder="Search clipboard…" onChange={(event) => setQuery(event.target.value)} />
+            <Input id="clipboard-search" type="search" value={query} placeholder={t("Search clipboard…")} onChange={(event) => setQuery(event.target.value)} />
           </label>
-          <Button variant="outline" size="sm" onClick={clear} disabled={snapshot.entries.length === 0}><Eraser />Clear</Button>
+          <Button variant="outline" size="sm" onClick={clear} disabled={snapshot.entries.length === 0}><Eraser />{t("Clear")}</Button>
         </div>}
       />
 
       <Tabs className="clipboard-filter-tabs" value={filter} onValueChange={(value) => setFilter(value as ClipboardFilter)}>
-        <TabsList className="clipboard-filter-list" aria-label="Filter clipboard history">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="text">Text</TabsTrigger>
-          <TabsTrigger value="image">Images</TabsTrigger>
-          <TabsTrigger className="clipboard-code-tab" value="code">Code & links</TabsTrigger>
-          <TabsTrigger value="file">Files</TabsTrigger>
+        <TabsList className="clipboard-filter-list" aria-label={t("Filter clipboard history")}>
+          <TabsTrigger value="all">{t("All")}</TabsTrigger>
+          <TabsTrigger value="text">{t("Text")}</TabsTrigger>
+          <TabsTrigger value="image">{t("Images")}</TabsTrigger>
+          <TabsTrigger className="clipboard-code-tab" value="code">{t("Code & links")}</TabsTrigger>
+          <TabsTrigger value="file">{t("Files")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {visible.length === 0 ? (
         <div className="empty-state clipboard-empty">
-          <h3>{snapshot.entries.length === 0 ? "Copy something to get started" : "No matching clipboard items"}</h3>
-          <p>{snapshot.entries.length === 0 ? "Text and images you copy will appear here automatically." : "Try another search or content filter."}</p>
+          <h3>{snapshot.entries.length === 0 ? t("Copy something to get started") : t("No matching clipboard items")}</h3>
+          <p>{snapshot.entries.length === 0 ? t("Text and images you copy will appear here automatically.") : t("Try another search or content filter.")}</p>
         </div>
       ) : (
         <div className={`clipboard-columns ${groups.length === 1 ? "is-single" : ""}`}>
@@ -149,11 +151,11 @@ export function ClipboardPage() {
             <section className={`clipboard-column is-${group.id}`} key={group.id}>
               <header>
                 <group.icon />
-                <strong>{group.title}</strong>
+                <strong>{t(group.title)}</strong>
                 <span>{group.entries.length}</span>
               </header>
               <div className="clipboard-column-body">
-                {group.entries.length === 0 ? <p className="clipboard-column-empty">Nothing here yet.</p> : group.entries.map((entry) => (
+                {group.entries.length === 0 ? <p className="clipboard-column-empty">{t("Nothing here yet.")}</p> : group.entries.map((entry) => (
                   <ClipboardCard
                     key={entry.id}
                     entry={entry}
@@ -174,13 +176,13 @@ export function ClipboardPage() {
         {preview ? (
           <DialogContent className="clipboard-preview-dialog">
             <DialogHeader>
-              <DialogTitle>Clipboard image</DialogTitle>
+              <DialogTitle>{t("Clipboard image")}</DialogTitle>
               <DialogDescription>
                 {preview.entry.width ?? "—"} × {preview.entry.height ?? "—"} · {formatBytes(preview.entry.byteSize)}
               </DialogDescription>
             </DialogHeader>
             <div className="clipboard-preview-stage">
-              <img src={preview.dataUrl} alt={`Clipboard preview ${preview.entry.width ?? ""}×${preview.entry.height ?? ""}`} />
+              <img src={preview.dataUrl} alt={`${t("Clipboard preview")} ${preview.entry.width ?? ""}×${preview.entry.height ?? ""}`} />
             </div>
           </DialogContent>
         ) : null}
@@ -197,13 +199,14 @@ function ClipboardCard({ entry, copied, onCopy, onDelete, onPreview, onOpenLink 
   onPreview: () => void;
   onOpenLink: () => void;
 }) {
+  const { t } = useI18n();
   const isCode = entry.kind === "code";
   const highlighted = useMemo(() => isCode && entry.content ? highlightCode(entry.content) : null, [entry.content, isCode]);
   return (
     <article className={`clipboard-card is-${entry.kind}`}>
       {entry.kind === "image" && entry.previewDataUrl ? (
-        <button className="clipboard-image-button" type="button" onClick={onPreview} aria-label="Preview clipboard image">
-          <img src={entry.previewDataUrl} alt={`Clipboard image ${entry.width ?? ""}×${entry.height ?? ""}`} />
+        <button className="clipboard-image-button" type="button" onClick={onPreview} aria-label={t("Preview clipboard image")}>
+          <img src={entry.previewDataUrl} alt={`${t("Clipboard image")} ${entry.width ?? ""}×${entry.height ?? ""}`} />
         </button>
       ) : entry.kind === "file" ? (
         <div className="clipboard-files">
@@ -212,10 +215,10 @@ function ClipboardCard({ entry, copied, onCopy, onDelete, onPreview, onOpenLink 
           ))}
         </div>
       ) : entry.kind === "link" ? (
-        <button className="clipboard-link" type="button" onClick={onOpenLink} title="Open in browser"><Link2 /><span>{entry.content}</span></button>
+        <button className="clipboard-link" type="button" onClick={onOpenLink} title={t("Open in browser")}><Link2 /><span>{entry.content}</span></button>
       ) : isCode ? (
         <>
-          <div className="clipboard-code-head"><Code2 /><strong>CODE · {highlighted?.language ?? "text"}</strong></div>
+          <div className="clipboard-code-head"><Code2 /><strong>{t("CODE")} · {highlighted?.language ?? "text"}</strong></div>
           <pre><code className="hljs" dangerouslySetInnerHTML={{ __html: highlighted?.html ?? "" }} /></pre>
         </>
       ) : (
@@ -224,12 +227,12 @@ function ClipboardCard({ entry, copied, onCopy, onDelete, onPreview, onOpenLink 
       <footer>
         <span>{formatAge(entry.copiedAt)}</span>
         <span>{formatBytes(entry.byteSize)}</span>
-        {entry.copyCount > 1 ? <span>{entry.copyCount} copies</span> : null}
+        {entry.copyCount > 1 ? <span>{t("{count} copies", { count: entry.copyCount })}</span> : null}
         <span className="spacer" />
-        <Button variant="ghost" size="icon-xs" title="Copy again" aria-label="Copy again" onClick={onCopy}>
+        <Button variant="ghost" size="icon-xs" title={t("Copy again")} aria-label={t("Copy again")} onClick={onCopy}>
           {copied ? <Check /> : <Copy />}
         </Button>
-        <Button variant="ghost" size="icon-xs" className="clipboard-delete" title="Delete" aria-label="Delete clipboard item" onClick={onDelete}><Trash2 /></Button>
+        <Button variant="ghost" size="icon-xs" className="clipboard-delete" title={t("Delete")} aria-label={t("Delete clipboard item")} onClick={onDelete}><Trash2 /></Button>
       </footer>
     </article>
   );
@@ -237,10 +240,10 @@ function ClipboardCard({ entry, copied, onCopy, onDelete, onPreview, onOpenLink 
 
 function formatAge(timestamp: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(timestamp)) / 1000));
-  if (seconds < 60) return "now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-  return `${Math.floor(seconds / 86400)}d`;
+  if (seconds < 60) return translate("now");
+  if (seconds < 3600) return translate("{n}m", { n: Math.floor(seconds / 60) });
+  if (seconds < 86400) return translate("{n}h", { n: Math.floor(seconds / 3600) });
+  return translate("{n}d", { n: Math.floor(seconds / 86400) });
 }
 
 function formatBytes(bytes: number): string {

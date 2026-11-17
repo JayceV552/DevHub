@@ -7,6 +7,7 @@ import { StepRows } from "./StepRows";
 import type { NoteColor, StepDraft } from "./types";
 import { NOTE_STEP_PREVIEW } from "./types";
 import { formatRelative, insetFrom, isDirty, toDrafts } from "./utils";
+import { useI18n } from "../../../lib/i18n";
 
 export function TodoNote({ item, color, registerRef, onOpen, onRemove }: {
   item: TodoItem;
@@ -15,11 +16,12 @@ export function TodoNote({ item, color, registerRef, onOpen, onRemove }: {
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const done = item.steps.filter((step) => step.done).length;
   return (
     <article ref={registerRef} className={`todo-note todo-task-note is-${color} ${item.completed ? "is-completed" : ""}`}>
       <span className="todo-note-tape" />
-      <button className="todo-note-surface" onClick={onOpen} aria-label={`Open ${item.title}`} />
+      <button className="todo-note-surface" onClick={onOpen} aria-label={t("Open {title}", { title: item.title })} />
       <header>
         <div>
           <strong className="todo-note-title">{item.title}</strong>
@@ -29,7 +31,7 @@ export function TodoNote({ item, color, registerRef, onOpen, onRemove }: {
           </span>
         </div>
         <div className="todo-note-actions">
-          <button className="todo-note-remove" onClick={onRemove} aria-label={`Delete ${item.title}`}><Trash2 /></button>
+          <button className="todo-note-remove" onClick={onRemove} aria-label={t("Delete {title}", { title: item.title })}><Trash2 /></button>
         </div>
       </header>
       {item.steps.length ? (
@@ -41,7 +43,7 @@ export function TodoNote({ item, color, registerRef, onOpen, onRemove }: {
             </li>
           ))}
           {item.steps.length > NOTE_STEP_PREVIEW ? (
-            <li className="todo-note-step-more">+{item.steps.length - NOTE_STEP_PREVIEW} more</li>
+            <li className="todo-note-step-more">{t("+{n} more", { n: item.steps.length - NOTE_STEP_PREVIEW })}</li>
           ) : null}
         </ul>
       ) : null}
@@ -59,6 +61,7 @@ export function TodoStage({ item, color, getOrigin, onClose, onSave, onToggle, o
   onToggleStep: (stepId: string, done: boolean) => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const stageRef = useRef<HTMLElement>(null);
   const animationRef = useRef<Animation | null>(null);
   const closingRef = useRef(false);
@@ -154,13 +157,13 @@ export function TodoStage({ item, color, getOrigin, onClose, onSave, onToggle, o
       className={`todo-task-stage is-${color}`}
       role="dialog"
       aria-modal="true"
-      aria-label={`Edit ${item.title}`}
+      aria-label={t("Edit {title}", { title: item.title })}
     >
       <header className="todo-task-stage-header">
         <button
           className="todo-note-check"
           onClick={onToggle}
-          aria-label={item.completed ? "Mark todo incomplete" : "Complete todo"}
+          aria-label={item.completed ? t("Mark todo incomplete") : t("Complete todo")}
         >
           {item.completed ? <Check /> : null}
         </button>
@@ -168,18 +171,18 @@ export function TodoStage({ item, color, getOrigin, onClose, onSave, onToggle, o
           <input
             className="todo-task-stage-title"
             value={title}
-            placeholder="Untitled todo"
-            aria-label="Todo title"
+            placeholder={t("Untitled todo")}
+            aria-label={t("Todo title")}
             onChange={(event) => setTitle(event.target.value)}
           />
           <small>
             pinned {formatRelative(item.createdAt)}
-            {steps.length ? ` · ${doneCount} of ${steps.length} done` : ""}
+            {steps.length ? ` · ${t("{done} of {total} done", { done: doneCount, total: steps.length })}` : ""}
           </small>
         </div>
         <div className="todo-task-stage-actions">
-          <button onClick={onDelete} aria-label={`Delete ${item.title}`}><Trash2 /></button>
-          <button onClick={() => void commit()} aria-label="Close todo"><X /></button>
+          <button onClick={onDelete} aria-label={t("Delete {title}", { title: item.title })}><Trash2 /></button>
+          <button onClick={() => void commit()} aria-label={t("Close todo")}><X /></button>
         </div>
       </header>
 
@@ -188,8 +191,8 @@ export function TodoStage({ item, color, getOrigin, onClose, onSave, onToggle, o
       </div>
 
       <footer className="todo-task-stage-footer">
-        {error ? <span className="todo-task-stage-error">{error}</span> : <span>{steps.length ? `${doneCount} of ${steps.length} done` : "No checklist yet"}</span>}
-        <Button size="sm" onClick={() => void commit()} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+        {error ? <span className="todo-task-stage-error">{error}</span> : <span>{steps.length ? t("{done} of {total} done", { done: doneCount, total: steps.length }) : t("No checklist yet")}</span>}
+        <Button size="sm" onClick={() => void commit()} disabled={busy}>{busy ? t("Saving…") : t("Save")}</Button>
       </footer>
     </section>
   );

@@ -32,8 +32,10 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useDevHub } from "../hooks/useDevHub";
 import { api, errorMessage } from "../lib/api";
 import type { ActivityColumn, ActivityItem, ActivityType, Board, BoardColumn, GitHubStatus } from "../lib/types";
+import { useI18n } from "../lib/i18n";
 
 export function ActivityPage() {
+  const { t } = useI18n();
   const { report } = useDevHub();
   const [board, setBoard] = useState<Board | null>(null);
   const [status, setStatus] = useState<GitHubStatus | null>(null);
@@ -135,7 +137,7 @@ export function ActivityPage() {
   if (!status.connected || authRequired) {
     return (
       <>
-        <PageHeader title="GitHub Activity" subtitle={authRequired ? "Your session has expired" : "Not connected"} />
+        <PageHeader title={t("GitHub Activity")} subtitle={authRequired ? t("Your session has expired") : t("Not connected")} />
         <GitHubConnect
           reconnect={authRequired}
           onReport={report}
@@ -149,12 +151,12 @@ export function ActivityPage() {
     <div className="activity-board-page">
       <PageHeader
         className="activity-board-header"
-        title="GitHub Activity"
+        title={t("GitHub Activity")}
         actions={<div className="page-actions">
-          <Button variant={showSaved ? "default" : "outline"} size="sm" onClick={() => setShowSaved((value) => !value)}><Bookmark />Saved</Button>
-          <Button variant="outline" size="sm" onClick={() => setCreating(true)}><Plus />Column</Button>
-          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{loading ? "Refreshing" : "Refresh"}</Button>
-          <Button variant="ghost" size="sm" onClick={() => columnAction(async () => { await api.clearGithubToken(); setBoard(null); })}>Disconnect</Button>
+          <Button variant={showSaved ? "default" : "outline"} size="sm" onClick={() => setShowSaved((value) => !value)}><Bookmark />{t("Saved")}</Button>
+          <Button variant="outline" size="sm" onClick={() => setCreating(true)}><Plus />{t("Column")}</Button>
+          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{loading ? t("Refreshing") : t("Refresh")}</Button>
+          <Button variant="ghost" size="sm" onClick={() => columnAction(async () => { await api.clearGithubToken(); setBoard(null); })}>{t("Disconnect")}</Button>
         </div>}
       />
 
@@ -182,7 +184,7 @@ export function ActivityPage() {
                 onReport={report}
               />
             ))}
-            <button className="board-add" onClick={() => setCreating(true)}><Plus /><span>Add column</span></button>
+            <button className="board-add" onClick={() => setCreating(true)}><Plus /><span>{t("Add column")}</span></button>
           </div>
 
         </div>
@@ -200,10 +202,11 @@ export function ActivityPage() {
 }
 
 function ActivityPageLoading() {
+  const { t } = useI18n();
   return (
     <div className="activity-page-loading" role="status" aria-live="polite">
       <LoaderCircle className="ui-spinner" aria-hidden="true" />
-      <span>Loading GitHub activity…</span>
+      <span>{t("Loading GitHub activity…")}</span>
     </div>
   );
 }
@@ -239,6 +242,7 @@ function Column({ column, savedIds, isDashboard, onToggleSave, onEdit, onAction,
   onMove: (sourceId: string, targetId: string) => void;
   onReport: (err: unknown) => void;
 }) {
+  const { t } = useI18n();
   const [pendingFilter, setPendingFilter] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -327,7 +331,7 @@ function Column({ column, savedIds, isDashboard, onToggleSave, onEdit, onAction,
     >
       <header
         className={`column-head ${!isDashboard ? "is-draggable" : ""}`}
-        title={!isDashboard ? "Drag header to reorder column" : undefined}
+        title={!isDashboard ? t("Drag header to reorder column") : undefined}
         onPointerDown={(event) => {
           if (isDashboard || event.button !== 0 || (event.target as HTMLElement).closest("button, input, [role='menuitem']")) return;
           event.preventDefault();
@@ -377,18 +381,18 @@ function Column({ column, savedIds, isDashboard, onToggleSave, onEdit, onAction,
         onPointerCancel={() => { pointerDrag.current = null; onDragEnd(); }}
       >
         <ColumnIcon className="column-icon" />
-        <div className="column-title">{column.title}</div>
+        <div className="column-title">{t(column.title)}</div>
         {!isDashboard ? <div className="column-actions">
-          <Button variant="ghost" size="icon-xs" title="Search column" aria-pressed={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search /></Button>
+          <Button variant="ghost" size="icon-xs" title={t("Search column")} aria-pressed={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search /></Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" title="Column menu"><MoreHorizontal /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs" title={t("Column menu")}><MoreHorizontal /></Button></DropdownMenuTrigger>
             <DropdownMenuContent className="column-menu-content" align="end">
-              <DropdownMenuItem onSelect={onEdit}><Pencil />Edit column</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onEdit}><Pencil />{t("Edit column")}</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={() => { if (window.confirm(`Remove the “${column.title}” column?`)) onAction(() => api.removeColumn(column.id)); }}><Trash2 />Remove column</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => { if (window.confirm(t("Remove the “{title}” column?", { title: column.title }))) onAction(() => api.removeColumn(column.id)); }}><Trash2 />{t("Remove column")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div> : <div className="dashboard-head-actions"><span className="dashboard-caption">Your feed</span><Button variant="ghost" size="icon-xs" title="Search column" aria-pressed={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search /></Button></div>}
+        </div> : <div className="dashboard-head-actions"><span className="dashboard-caption">{t("Your feed")}</span><Button variant="ghost" size="icon-xs" title={t("Search column")} aria-pressed={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search /></Button></div>}
       </header>
 
       <div className={`column-search ${searchOpen ? "is-open" : ""}`} aria-hidden={!searchOpen}>
@@ -398,17 +402,17 @@ function Column({ column, savedIds, isDashboard, onToggleSave, onEdit, onAction,
             tabIndex={searchOpen ? 0 : -1}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search this column…"
-            aria-label={`Search ${column.title}`}
+            placeholder={t("Search this column…")}
+            aria-label={t("Search {title}", { title: column.title })}
           />
-          <Button variant="ghost" size="icon-xs" tabIndex={searchOpen ? 0 : -1} aria-label="Close search" onClick={() => { setSearchQuery(""); setSearchOpen(false); }}><X /></Button>
+          <Button variant="ghost" size="icon-xs" tabIndex={searchOpen ? 0 : -1} aria-label={t("Close search")} onClick={() => { setSearchQuery(""); setSearchOpen(false); }}><X /></Button>
         </div>
 
       {isDashboard && people.length > 0 ? (
-        <div className="dashboard-people" aria-label="Filter Dashboard by user">
+        <div className="dashboard-people" aria-label={t("Filter Dashboard by user")}>
           <button className={!dashboardActor ? "is-active" : ""} onClick={() => setDashboardActor(null)}>
             <span className="dashboard-person-all"><Users /></span>
-            <span>All</span>
+            <span>{t("All")}</span>
           </button>
           {people.map((person) => (
             <button
@@ -425,21 +429,21 @@ function Column({ column, savedIds, isDashboard, onToggleSave, onEdit, onAction,
 
       {!isDashboard ? <div className="column-filters">
         <Tabs className="w-full" value={activeQuickFilter} onValueChange={(value) => void setQuickFilter(value === "all" ? null : value as ActivityType)}>
-          <TabsList className="w-full activity-tabs-list" aria-label={`Filter ${column.title} feed`}>
+          <TabsList className="w-full activity-tabs-list" aria-label={t("Filter {title} feed", { title: column.title })}>
             {quickFilters.map((filter) => (
               <TabsTrigger disabled={pendingFilter !== null} key={filter.label} value={filter.type ?? "all"}>
-                {filter.label}
+                {t(filter.label)}
                 {pendingFilter === (filter.type ?? "all") ? <LoaderCircle className="column-tab-spinner ui-spinner" aria-hidden="true" /> : null}
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
-        {pendingFilter !== null ? <span className="sr-only" role="status">Loading {column.title}</span> : null}
+        {pendingFilter !== null ? <span className="sr-only" role="status">{t("Loading {title}", { title: column.title })}</span> : null}
       </div> : null}
       <div className="column-body">
         <IncrementalActivityList
           items={visibleItems}
-          emptyMessage={searchQuery || dashboardActor ? "No matching activity." : "Nothing here."}
+          emptyMessage={searchQuery || dashboardActor ? t("No matching activity.") : t("Nothing here.")}
           savedIds={savedIds}
           onToggleSave={onToggleSave}
           onReport={onReport}
@@ -454,6 +458,7 @@ function SavedColumn({ onToggleSave, onClose, onReport }: {
   onClose: () => void;
   onReport: (err: unknown) => void;
 }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<ActivityItem[] | null>(null);
   const reload = useCallback(() => { api.listSaved().then(setItems).catch(onReport); }, [onReport]);
   useEffect(reload, [reload]);
@@ -464,15 +469,15 @@ function SavedColumn({ onToggleSave, onClose, onReport }: {
     <section className="column is-saved-column">
       <header className="column-head">
         <Bookmark className="column-icon" />
-        <div className="column-title">Saved</div>
-        <div className="column-actions is-visible"><Button variant="ghost" size="icon-xs" title="Close" onClick={onClose}><X /></Button></div>
+        <div className="column-title">{t("Saved")}</div>
+        <div className="column-actions is-visible"><Button variant="ghost" size="icon-xs" title={t("Close")} onClick={onClose}><X /></Button></div>
       </header>
-      <div className="column-filters"><span className="saved-caption">Items kept for later</span></div>
+      <div className="column-filters"><span className="saved-caption">{t("Items kept for later")}</span></div>
       <div className="column-body">
-        {items === null ? <p className="column-empty">Loading…</p> : (
+        {items === null ? <p className="column-empty">{t("Loading…")}</p> : (
           <IncrementalActivityList
             items={items}
-            emptyMessage="Nothing saved yet."
+            emptyMessage={t("Nothing saved yet.")}
             savedIds={new Set(items.map((item) => item.id))}
             onToggleSave={toggleSave}
             onReport={onReport}
@@ -492,6 +497,7 @@ function IncrementalActivityList({ items, emptyMessage, savedIds, onToggleSave, 
   onToggleSave: (item: ActivityItem) => void;
   onReport: (err: unknown) => void;
 }) {
+  const { t } = useI18n();
   const [limit, setLimit] = useState(ACTIVITY_PAGE_SIZE);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -530,7 +536,7 @@ function IncrementalActivityList({ items, emptyMessage, savedIds, onToggleSave, 
           className="column-load-more"
           onClick={() => setLimit((current) => Math.min(current + ACTIVITY_PAGE_SIZE, items.length))}
         >
-          Load more
+          {t("Load more")}
         </button>
       ) : null}
     </>

@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 import type { StepDraft } from "./types";
 import { newKey } from "./utils";
+import { useI18n } from "../../../lib/i18n";
 
 export function StepRows({ steps, setSteps, onToggle }: {
   steps: StepDraft[];
   setSteps: (next: StepDraft[]) => void;
   onToggle: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState("");
 
   const commitDraft = () => {
@@ -24,13 +26,13 @@ export function StepRows({ steps, setSteps, onToggle }: {
           <button
             className="todo-step-check"
             onClick={() => onToggle(index)}
-            aria-label={step.done ? `Reopen ${step.text}` : `Complete ${step.text}`}
+            aria-label={step.done ? t("Reopen {item}", { item: step.text }) : t("Complete {item}", { item: step.text })}
           >
             {step.done ? <Check /> : null}
           </button>
           <input
             value={step.text}
-            aria-label="Checklist item"
+            aria-label={t("Checklist item")}
             onChange={(event) => setSteps(steps.map((entry, position) => position === index
               ? { ...entry, text: event.target.value }
               : entry))}
@@ -47,7 +49,7 @@ export function StepRows({ steps, setSteps, onToggle }: {
           <button
             className="todo-step-remove"
             onClick={() => setSteps(steps.filter((_, position) => position !== index))}
-            aria-label={`Remove ${step.text}`}
+            aria-label={t("Remove {item}", { item: step.text })}
           >
             <X />
           </button>
@@ -57,8 +59,8 @@ export function StepRows({ steps, setSteps, onToggle }: {
         <span className="todo-step-check"><Plus /></span>
         <input
           value={draft}
-          placeholder="Add a checklist item"
-          aria-label="New checklist item"
+          placeholder={t("Add a checklist item")}
+          aria-label={t("New checklist item")}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitDraft(); } }}
           onBlur={commitDraft}
