@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::error::Result;
 use crate::services::{PathResolver, Settings};
@@ -10,13 +10,18 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn update_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings> {
+pub fn update_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<Settings> {
     let cap = settings.clipboard_storage_cap_mb;
     let saved = state.update_config(|config| {
         config.settings = settings;
         Ok(config.settings.clone())
     })?;
     state.clipboard.set_cap_mb(cap)?;
+    let _ = app.emit("devhub://settings-changed", &saved);
     Ok(saved)
 }
 

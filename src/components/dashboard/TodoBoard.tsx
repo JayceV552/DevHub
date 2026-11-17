@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  Coffee,
   GitBranch,
   ListTodo,
   LoaderCircle,
@@ -9,7 +10,10 @@ import {
   Settings2,
 } from "lucide-react";
 
+import { useDevHub } from "../../hooks/useDevHub";
 import { api } from "../../lib/api";
+import { cn } from "../../lib/utils";
+
 import type {
   RepositoryIssueGroup,
   TodoBoard as TodoBoardData,
@@ -25,13 +29,17 @@ import { RepositoryDialog, TodoDialog } from "./todo/TodoDialogs";
 import type { BoardCard } from "./todo/types";
 import { MAX_BOARD_ROWS, NOTE_COLORS } from "./todo/types";
 import { useGridColumns } from "./todo/utils";
+import { useI18n } from "../../lib/i18n";
 
 export function TodoBoard({ projectRepositories, onNavigate, onReport }: {
   projectRepositories: string[];
   onNavigate: (page: string) => void;
   onReport: (error: unknown) => void;
 }) {
+  const { caffeinated, toggleCaffeinate } = useDevHub();
+  const { t } = useI18n();
   const [board, setBoard] = useState<TodoBoardData | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [showTodoDialog, setShowTodoDialog] = useState(false);
   const [openTodoId, setOpenTodoId] = useState<string | null>(null);
@@ -157,31 +165,49 @@ export function TodoBoard({ projectRepositories, onNavigate, onReport }: {
     <section className="todo-board-section section">
       <PageHeader
         className="todo-board-heading"
-        title="Todo board"
+        title={t("Todo board")}
         subtitle={(
           <>
             {board?.repositories.length
-              ? `${board.repositories.length} watched repositor${board.repositories.length === 1 ? "y" : "ies"} · ${board.todos.filter((todo) => !todo.completed).length} open todos`
-              : "Pin your own tasks beside the latest GitHub issues."}
+              ? t("{repos} watched repositories · {todos} open todos", {
+                repos: board.repositories.length,
+                todos: board.todos.filter((todo) => !todo.completed).length,
+              })
+              : t("Pin your own tasks beside the latest GitHub issues.")}
           </>
         )}
         actions={<div className="todo-board-actions">
-          <Button variant="outline" size="sm" onClick={() => setShowRepositoryDialog(true)}><Settings2 />Repositories</Button>
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />Refresh</Button>
-          <Button size="sm" onClick={() => setShowTodoDialog(true)}><Plus />New todo</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowRepositoryDialog(true)}><Settings2 />{t("Repositories")}</Button>
+          <Button
+            variant={caffeinated ? "default" : "outline"}
+            size="icon"
+            className={cn(
+              "size-8 rounded-[min(var(--radius-md),12px)] transition-colors",
+              caffeinated && "bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-xs dark:bg-amber-600 dark:hover:bg-amber-500",
+            )}
+            onClick={() => void toggleCaffeinate()}
+            title={caffeinated ? t("caffeinate -i is running (macOS sleep prevented) · Click to stop") : t("Run caffeinate -i (prevent macOS sleep)")}
+            aria-label={caffeinated ? t("Stop caffeinate -i") : t("Run caffeinate -i")}
+            aria-pressed={caffeinated}
+          >
+            <Coffee className={cn("size-4", caffeinated && "stroke-[2.5]")} />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{t("Refresh")}</Button>
+          <Button size="sm" onClick={() => setShowTodoDialog(true)}><Plus />{t("New todo")}</Button>
         </div>}
+
       />
 
       <div className={`todo-pinboard ${stageOverlay ? "is-folder-preview" : ""}`}>
-        <div className="todo-pinboard-label"><ListTodo /> Focus board</div>
+        <div className="todo-pinboard-label"><ListTodo /> {t("Focus board")}</div>
         {board?.issueError ? (
           <div className="todo-board-notice">
             <GitBranch />
             <span>{board.issueError === "GitHub authentication required."
-              ? "Sign in again to load repository issues."
-              : "Repository issues could not be loaded."}</span>
+              ? t("Sign in again to load repository issues.")
+              : t("Repository issues could not be loaded.")}</span>
             <button className="link-button" onClick={() => onNavigate("activity")}>
-              {board.issueError === "GitHub authentication required." ? "Sign in" : "Open GitHub"}
+              {board.issueError === "GitHub authentication required." ? t("Sign in") : t("Open GitHub")}
             </button>
           </div>
         ) : null}
@@ -190,13 +216,13 @@ export function TodoBoard({ projectRepositories, onNavigate, onReport }: {
           {!board || loading && cards.length === 0 ? (
             <div className="todo-board-loading" role="status">
               <LoaderCircle className="todo-board-spinner ui-spinner" aria-hidden="true" />
-              <span>Loading board…</span>
+              <span>{t("Loading board…")}</span>
             </div>
           ) : cards.length === 0 ? (
             <button className="todo-board-empty" onClick={() => setShowTodoDialog(true)}>
               <Plus />
-              <strong>Pin your first todo</strong>
-              <span>or configure a repository to bring in its latest issues</span>
+              <strong>{t("Pin your first todo")}</strong>
+              <span>{t("or configure a repository to bring in its latest issues")}</span>
             </button>
           ) : (
             <div className="todo-note-grid" ref={gridRef}>

@@ -12,10 +12,12 @@ import { Input } from "../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useDevHub } from "../hooks/useDevHub";
 import type { ProjectView, Run } from "../lib/types";
+import { useI18n, type Translate } from "../lib/i18n";
 
 type StatusFilter = "all" | "running" | "attention";
 
 export function ProjectsPage() {
+  const { t } = useI18n();
   const { projects, runs, loading, refreshProjects, focusedProject, setFocusedProject } = useDevHub();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<ProjectView | null>(null);
@@ -95,20 +97,22 @@ export function ProjectsPage() {
 
   const selected = projects.find((project) => project.id === focusedProject) ?? null;
 
-  if (loading) return <div className="spinner-page">Loading projects…</div>;
+  if (loading) return <div className="spinner-page">{t("Loading projects…")}</div>;
 
   return (
     <div className="projects-page">
       <PageHeader
         className="projects-header"
-        title="Projects"
-        subtitle={`${countOf(projects.length, "project")}${workspaceCount > 0 ? ` across ${countOf(workspaceCount, "workspace")}` : ""}`}
+        title={t("Projects")}
+        subtitle={workspaceCount > 0
+          ? `${projectCount(t, projects.length)} · ${t(workspaceCount === 1 ? "1 workspace" : "{count} workspaces", { count: workspaceCount })}`
+          : projectCount(t, projects.length)}
         actions={<div className="page-toolbar projects-toolbar">
           <Tabs value={filter} onValueChange={(value) => setFilter(value as StatusFilter)}>
-            <TabsList className="projects-filter" aria-label="Filter projects by status">
-              <TabsTrigger value="all">All<span className="projects-filter-count">{projects.length}</span></TabsTrigger>
-              <TabsTrigger value="running">Running<span className="projects-filter-count">{runningCount}</span></TabsTrigger>
-              <TabsTrigger value="attention">Attention<span className="projects-filter-count">{attentionCount}</span></TabsTrigger>
+            <TabsList className="projects-filter" aria-label={t("Filter projects by status")}>
+              <TabsTrigger value="all">{t("All")}<span className="projects-filter-count">{projects.length}</span></TabsTrigger>
+              <TabsTrigger value="running">{t("Running")}<span className="projects-filter-count">{runningCount}</span></TabsTrigger>
+              <TabsTrigger value="attention">{t("Attention")}<span className="projects-filter-count">{attentionCount}</span></TabsTrigger>
             </TabsList>
           </Tabs>
           <label className="toolbar-search" htmlFor="project-search">
@@ -118,27 +122,27 @@ export function ProjectsPage() {
               ref={searchRef}
               type="search"
               value={query}
-              placeholder="Search projects…"
+              placeholder={t("Search projects…")}
               onChange={(event) => setQuery(event.target.value)}
             />
             <kbd>⌘K</kbd>
           </label>
-          <Button size="sm" onClick={() => setAdding(true)}><Plus />Add project</Button>
+          <Button size="sm" onClick={() => setAdding(true)}><Plus />{t("Add project")}</Button>
         </div>}
       />
 
       {projects.length === 0 ? (
         <div className="empty-state">
-          <h3>No projects yet</h3>
-          <p>Point DevHub at a folder and it will discover scripts, git metadata and development services.</p>
-          <Button onClick={() => setAdding(true)}><Plus />Add your first project</Button>
+          <h3>{t("No projects yet")}</h3>
+          <p>{t("Point DevHub at a folder and it will discover scripts, git metadata and development services.")}</p>
+          <Button onClick={() => setAdding(true)}><Plus />{t("Add your first project")}</Button>
         </div>
       ) : (
         <div className={`projects-body ${selected ? "has-detail" : ""}`}>
           {visible.length === 0 ? (
             <div className="empty-state projects-empty">
-              <h3>No matching projects</h3>
-              <p>{filter === "all" ? "Try a different search query." : "Try a different search query or status filter."}</p>
+              <h3>{t("No matching projects")}</h3>
+              <p>{filter === "all" ? t("Try a different search query.") : t("Try a different search query or status filter.")}</p>
             </div>
           ) : (
             <ProjectList
@@ -173,6 +177,6 @@ export function ProjectsPage() {
   );
 }
 
-function countOf(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+function projectCount(t: Translate, count: number): string {
+  return t(count === 1 ? "1 project" : "{projects} projects", { projects: count });
 }

@@ -4,11 +4,13 @@ import { ChevronDown, PanelBottomOpen } from "lucide-react";
 import { useDevHub } from "../../hooks/useDevHub";
 import { Terminal } from "./Terminal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useI18n } from "../../lib/i18n";
 
 const MIN_HEIGHT = 120;
 const DEFAULT_HEIGHT = 300;
 
 export function TerminalPanel() {
+  const { t } = useI18n();
   const {
     openTabs,
     activeTab,
@@ -106,7 +108,7 @@ export function TerminalPanel() {
     return (
       <button className="terminal-collapsed-bar" onClick={() => setCollapsed(false)}>
         <PanelBottomOpen />
-        <span>Terminal</span>
+        <span>{t("Terminal")}</span>
         <span className="terminal-collapsed-count">{allTabs.length}</span>
         <kbd>⌘J</kbd>
       </button>
@@ -124,7 +126,7 @@ export function TerminalPanel() {
         onPointerUp={onPointerUp}
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize terminal panel"
+        aria-label={t("Resize terminal panel")}
       />
       <section className="terminal" style={{ height }}>
         <div className="terminal-tabs">
@@ -134,9 +136,9 @@ export function TerminalPanel() {
                 value={focusedProject ?? "all"}
                 onValueChange={(value) => setFocusedProject(value === "all" ? null : value)}
               >
-                <SelectTrigger size="sm" aria-label="Terminal scope"><SelectValue /></SelectTrigger>
+                <SelectTrigger size="sm" aria-label={t("Terminal scope")}><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All projects</SelectItem>
+                  <SelectItem value="all">{t("All projects")}</SelectItem>
                   {scopes.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -158,7 +160,7 @@ export function TerminalPanel() {
                 className="tab-close"
                 role="button"
                 tabIndex={-1}
-                aria-label={`Close ${run.projectName} ${run.commandId}`}
+                aria-label={t("Close {target}", { target: `${run.projectName} ${run.commandId}` })}
                 onClick={(event) => {
                   event.stopPropagation();
                   closeTab(run.runId);
@@ -168,7 +170,7 @@ export function TerminalPanel() {
               </span>
             </button>
           ))}
-          <button className="terminal-collapse-button" onClick={() => setCollapsed(true)} title="Hide terminal (⌘J)" aria-label="Hide terminal">
+          <button className="terminal-collapse-button" onClick={() => setCollapsed(true)} title={t("Hide terminal (⌘J)")} aria-label={t("Hide terminal")}>
             <ChevronDown />
           </button>
         </div>
@@ -185,8 +187,8 @@ export function TerminalPanel() {
           <div className="terminal-body">
             <span className="terminal-empty">
               {focusedName
-                ? `No output open for ${focusedName}.`
-                : "No output open."}
+                ? t("No output open for {name}.", { name: focusedName })
+                : t("No output open.")}
             </span>
           </div>
         )}

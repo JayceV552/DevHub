@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { defaultService, formatAgo, monogram, projectAvatarColor, shortenPath, StatusPill, type ProjectStatus } from "./projectStatus";
+import { translate, useI18n } from "../../lib/i18n";
 
 export interface ProjectGroup {
   // `null` collects the projects that belong to no workspace group.
@@ -34,6 +35,7 @@ export function ProjectList({ groups, runsByProject, statuses, selectedId, expan
   onEdit: (project: ProjectView) => void;
   onRemoved: (projectId: string) => void;
 }) {
+  const { t } = useI18n();
   const { ports } = useDevHub();
   const [collapsed, setCollapsed] = useState(readCollapsedGroups);
 
@@ -67,10 +69,10 @@ export function ProjectList({ groups, runsByProject, statuses, selectedId, expan
   return (
     <div className="project-list">
       <div className="project-list-head" aria-hidden="true">
-        <span>Project</span>
-        <span>Status</span>
-        <span className="project-col-ports">Ports</span>
-        <span className="project-col-last">Last run</span>
+        <span>{t("Project")}</span>
+        <span>{t("Status")}</span>
+        <span className="project-col-ports">{t("Ports")}</span>
+        <span className="project-col-last">{t("Last run")}</span>
         <span />
       </div>
       <div className="project-list-scroll">
@@ -125,6 +127,7 @@ function GroupHead({ group, expanded, canCollapse, runningCount, onToggle }: {
   runningCount: number;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const { report } = useDevHub();
   const [busy, setBusy] = useState(false);
   const { name, projects } = group;
@@ -151,21 +154,21 @@ function GroupHead({ group, expanded, canCollapse, runningCount, onToggle }: {
       >
         <ChevronDown className="project-group-chevron" aria-hidden="true" />
         <Folder className="project-group-icon" aria-hidden="true" />
-        <span className="project-group-name">{name ?? "Ungrouped"}</span>
+        <span className="project-group-name">{name ?? t("Ungrouped")}</span>
         <span className="project-group-meta">
-          {projects.length} {projects.length === 1 ? "project" : "projects"}
-          {runningCount > 0 ? <span className="text-success"> · {runningCount} running</span> : null}
+          {t(projects.length === 1 ? "1 project" : "{projects} projects", { projects: projects.length })}
+          {runningCount > 0 ? <span className="text-success"> · {t("{count} running", { count: runningCount })}</span> : null}
         </span>
       </button>
       {name !== null ? (
         <div className="project-group-actions">
           {runningCount > 0 ? (
             <Button variant="ghost" size="xs" disabled={busy} onClick={() => void act(name, "stop")}>
-              <Square fill="currentColor" />Stop all
+              <Square fill="currentColor" />{t("Stop all")}
             </Button>
           ) : null}
           <Button variant="outline" size="xs" disabled={busy} onClick={() => void act(name, "start")}>
-            <Play fill="currentColor" />Start all
+            <Play fill="currentColor" />{t("Start all")}
           </Button>
         </div>
       ) : null}
@@ -183,6 +186,7 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
   onEdit: () => void;
   onRemoved: () => void;
 }) {
+  const { t } = useI18n();
   const { start, stop, openTab, report } = useDevHub();
   const rowRef = useRef<HTMLDivElement>(null);
   const running = runs.filter((run) => run.status === "running");
@@ -195,7 +199,7 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
   }, [selected]);
 
   const remove = async () => {
-    if (!window.confirm(`Remove "${project.name}" from DevHub?\n\nThe folder itself is not touched.`)) return;
+    if (!window.confirm(translate("Remove \"{name}\" from DevHub?\n\nThe folder itself is not touched.", { name: project.name }))) return;
     try {
       await api.removeProject(project.id);
       onRemoved();
@@ -246,7 +250,7 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
             key={port}
             className="port-chip"
             href={`http://localhost:${port}`}
-            title={`Open http://localhost:${port}`}
+            title={t("Open {url}", { url: `http://localhost:${port}` })}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -278,8 +282,8 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
             variant="ghost"
             size="icon-xs"
             className="project-row-stop"
-            title={`Stop ${running.map((run) => run.commandId).join(", ")}`}
-            aria-label={`Stop ${project.name}`}
+            title={t("Stop {target}", { target: running.map((run) => run.commandId).join(", ") })}
+            aria-label={t("Stop {target}", { target: project.name })}
             onClick={() => running.forEach((run) => void stop(run.runId))}
           >
             <Square fill="currentColor" />
@@ -289,8 +293,8 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
             variant="ghost"
             size="icon-xs"
             className="is-reveal"
-            title={`Run ${service}`}
-            aria-label={`Run ${service} in ${project.name}`}
+            title={t("Run {script}", { script: service })}
+            aria-label={t("Run {script} in {project}", { script: service, project: project.name })}
             disabled={!project.pathExists}
             onClick={() => void start(project.id, service)}
           >
@@ -299,7 +303,7 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
         ) : <span className="project-row-slot" />}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-xs" className="is-reveal" aria-label={`More actions for ${project.name}`}>
+            <Button variant="ghost" size="icon-xs" className="is-reveal" aria-label={t("More actions for {name}", { name: project.name })}>
               <Ellipsis />
             </Button>
           </DropdownMenuTrigger>
@@ -311,13 +315,13 @@ function ProjectRow({ project, runs, status, ports, selected, onSelect, onEdit, 
                   openTab(latest.runId);
                 }}
               >
-                <SquareTerminal />Show output
+                <SquareTerminal />{t("Show output")}
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem onSelect={onEdit}><Pencil />Edit project…</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onEdit}><Pencil />{t("Edit project…")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onSelect={() => void remove()}>
-              <Trash2 />Remove from DevHub
+              <Trash2 />{t("Remove from DevHub")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

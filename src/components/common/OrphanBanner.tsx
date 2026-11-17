@@ -3,11 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import type { TrackedRun } from "../../lib/types";
 import { Button } from "../ui/button";
+import { useI18n } from "../../lib/i18n";
 
 export function OrphanBanner() {
   const [orphans, setOrphans] = useState<TrackedRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let active = true;
@@ -49,12 +51,12 @@ export function OrphanBanner() {
         </span>
         <div>
           <strong>
-            {orphans.length} process{orphans.length === 1 ? "" : "es"} from a previous session
-            {orphans.length === 1 ? " is" : " are"} still running
+            {orphans.length === 1
+              ? t("1 process from a previous session is still running")
+              : t("{count} processes from a previous session are still running", { count: orphans.length })}
           </strong>
           <p>
-            DevHub did not shut down cleanly, so these kept going. Stopping one ends its whole
-            process tree.
+            {t("DevHub did not shut down cleanly, so these kept going. Stopping one ends its whole process tree.")}
           </p>
         </div>
         <span className="spacer" />
@@ -66,7 +68,7 @@ export function OrphanBanner() {
             act(() => api.stopAllOrphans(), orphans.map((o) => o.pid))
           }
         >
-          Stop all
+          {t("Stop all")}
         </Button>
       </header>
 
@@ -80,16 +82,16 @@ export function OrphanBanner() {
               <span style={{ color: "var(--text-faint)" }}> / {orphan.command_id}</span>
             </span>
             <code>{orphan.display_command}</code>
-            <span className="orphan-pid">pid {orphan.pid}</span>
+            <span className="orphan-pid">PID {orphan.pid}</span>
             <span className="spacer" />
             <Button
               size="sm"
               variant="ghost"
               disabled={busy}
               onClick={() => act(() => api.dismissOrphan(orphan.pid), [orphan.pid])}
-              title="Leave it running and stop tracking it"
+              title={t("Leave it running and stop tracking it")}
             >
-              Ignore
+              {t("Ignore")}
             </Button>
             <Button
               size="sm"
@@ -97,7 +99,7 @@ export function OrphanBanner() {
               disabled={busy}
               onClick={() => act(() => api.stopOrphan(orphan.pid), [orphan.pid])}
             >
-              Stop
+              {t("Stop")}
             </Button>
           </li>
         ))}

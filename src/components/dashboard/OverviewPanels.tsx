@@ -15,6 +15,7 @@ import {
 import { api, onClipboardChange } from "../../lib/api";
 import type { ClipboardEntry, ClipboardSnapshot, SystemMemorySnapshot } from "../../lib/types";
 import { Button } from "../ui/button";
+import { translate, useI18n } from "../../lib/i18n";
 
 export function OverviewPanels({ onNavigate, onReport }: {
   onNavigate: (page: string) => void;
@@ -24,6 +25,7 @@ export function OverviewPanels({ onNavigate, onReport }: {
   const [memory, setMemory] = useState<SystemMemorySnapshot | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const refreshClipboard = useCallback(() => {
     api.clipboardSnapshot().then(setClipboard).catch(onReport);
@@ -76,11 +78,11 @@ export function OverviewPanels({ onNavigate, onReport }: {
     <div className="overview-panels section">
       <section className="overview-panel recent-clipboard-panel">
         <header className="overview-panel-header">
-          <div className="overview-panel-title"><Clipboard /><div><h2>Recent clipboard</h2><p>The latest items captured by DevHub</p></div></div>
-          <Button variant="ghost" size="sm" onClick={() => onNavigate("clipboard")}>View all</Button>
+          <div className="overview-panel-title"><Clipboard /><div><h2>{t("Recent clipboard")}</h2><p>{t("The latest items captured by DevHub")}</p></div></div>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate("clipboard")}>{t("View all")}</Button>
         </header>
         {recent.length === 0 ? (
-          <div className="overview-panel-empty">Your recent clipboard items will appear here.</div>
+          <div className="overview-panel-empty">{t("Your recent clipboard items will appear here.")}</div>
         ) : (
           <div className="recent-clipboard-list">
             {recent.map((entry) => {
@@ -88,7 +90,7 @@ export function OverviewPanels({ onNavigate, onReport }: {
               return (
                 <button key={entry.id} className="recent-clipboard-item" onClick={() => void copy(entry)}>
                   {entry.kind === "image" && entry.previewDataUrl
-                    ? <img src={entry.previewDataUrl} alt="Clipboard preview" />
+                    ? <img src={entry.previewDataUrl} alt={t("Clipboard preview")} />
                     : <span className={`clipboard-kind-icon is-${entry.kind}`}><Icon /></span>}
                   <span className="recent-clipboard-copy">
                     <strong>{clipboardTitle(entry)}</strong>
@@ -104,8 +106,8 @@ export function OverviewPanels({ onNavigate, onReport }: {
 
       <section className="overview-panel memory-panel">
         <header className="overview-panel-header">
-          <div className="overview-panel-title"><MemoryStick /><div><h2>System memory</h2><p>{memory ? `${formatBytes(memory.usedBytes)} of ${formatBytes(memory.totalBytes)} used` : "Loading current usage…"}</p></div></div>
-          <Button variant="ghost" size="icon-sm" title="Refresh memory usage" onClick={refreshMemory} disabled={memoryLoading}>
+          <div className="overview-panel-title"><MemoryStick /><div><h2>{t("System memory")}</h2><p>{memory ? t("{used} of {total} used", { used: formatBytes(memory.usedBytes), total: formatBytes(memory.totalBytes) }) : t("Loading current usage…")}</p></div></div>
+          <Button variant="ghost" size="icon-sm" title={t("Refresh memory usage")} onClick={refreshMemory} disabled={memoryLoading}>
             <RefreshCw className={memoryLoading ? "animate-spin" : ""} />
           </Button>
         </header>
@@ -118,12 +120,12 @@ export function OverviewPanels({ onNavigate, onReport }: {
                   <div><strong>{consumer.name}</strong><span>{formatBytes(consumer.residentBytes)}</span></div>
                   <div className="memory-meter"><i style={{ width: `${Math.max(4, consumer.residentBytes / largestConsumer * 100)}%` }} /></div>
                 </div>
-                {consumer.processCount > 1 ? <small>{consumer.processCount} processes</small> : null}
+                {consumer.processCount > 1 ? <small>{t("{count} processes", { count: consumer.processCount })}</small> : null}
               </div>
             ))}
           </div>
         ) : (
-          <div className="overview-panel-empty">Loading running applications…</div>
+          <div className="overview-panel-empty">{t("Loading running applications…")}</div>
         )}
       </section>
     </div>
@@ -140,24 +142,24 @@ function clipboardIcon(entry: ClipboardEntry) {
 
 function clipboardTitle(entry: ClipboardEntry): string {
   if (entry.kind === "image") {
-    return entry.width && entry.height ? `Image · ${entry.width} × ${entry.height}` : "Image";
+    return entry.width && entry.height ? `${translate("Image")} · ${entry.width} × ${entry.height}` : translate("Image");
   }
   if (entry.files?.length) {
     const name = entry.files[0].split(/[\\/]/).pop() ?? entry.files[0];
     return entry.files.length === 1 ? name : `${name} +${entry.files.length - 1}`;
   }
   const content = entry.content?.replace(/\s+/g, " ").trim();
-  return content || "Empty clipboard item";
+  return content || translate("Empty clipboard item");
 }
 
 function formatRelative(value: string): string {
   const elapsed = Math.max(0, Date.now() - Date.parse(value));
   const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return translate("now");
+  if (minutes < 60) return translate("{n}m", { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
+  if (hours < 24) return translate("{n}h", { n: hours });
+  return translate("{n}d", { n: Math.floor(hours / 24) });
 }
 
 function formatBytes(bytes: number): string {

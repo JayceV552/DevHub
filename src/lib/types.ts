@@ -189,6 +189,79 @@ export interface Settings {
   hide_system_ports: boolean;
   clipboard_storage_cap_mb: number;
   github_client_id?: string | null;
+  enable_notch?: boolean;
+  language?: "zh" | "en";
+}
+
+export interface NotchInfo {
+  hasPhysicalNotch: boolean;
+  screenWidth: number;
+  screenHeight: number;
+  safeAreaTop: number;
+  notchX: number;
+  notchWidth: number;
+}
+
+export interface StatusBarApp {
+  name: string;
+  bundleId: string;
+  pid: number;
+  isHidden: boolean;
+  isOnscreen: boolean;
+  isSystem: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  iconBase64: string;
+}
+
+export interface StatusBarAppsResponse {
+  hiddenCount: number;
+  totalCount: number;
+  apps: StatusBarApp[];
+}
+
+export interface MusicStatus {
+  isRunning: boolean;
+  player: string;
+  bundleId: string;
+  isPlaying: boolean;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  /** Seconds, as of `sampledAt`. */
+  position: number;
+  /** Unix epoch ms when `position` was sampled. */
+  sampledAt: number;
+  /** JPEG data URL of the album artwork. */
+  artwork?: string | null;
+  /** PNG data URL of the playing app's icon. */
+  appIcon?: string | null;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  /** Unix epoch ms. */
+  start: number;
+  end: number;
+  allDay: boolean;
+  /** "#rrggbb" */
+  color: string;
+  calendar: string;
+}
+
+export interface CalendarEventsResponse {
+  access: "authorized" | "denied" | "restricted" | "notDetermined";
+  events: CalendarEvent[];
+}
+
+export interface NotchQuickStats {
+  activePortsCount: number;
+  runningProcessesCount: number;
+  caffeinateActive: boolean;
 }
 
 export type ClipboardKind = "text" | "code" | "link" | "image" | "file";

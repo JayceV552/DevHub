@@ -27,6 +27,11 @@ import type {
   TodoBoard,
   TodoItem,
   TodoStepInput,
+  NotchInfo,
+  StatusBarAppsResponse,
+  MusicStatus,
+  NotchQuickStats,
+  CalendarEventsResponse,
 } from "./types";
 
 export const api = {
@@ -121,7 +126,44 @@ export const api = {
   updateSettings: (settings: Settings) => invoke<Settings>("update_settings", { settings }),
   getConfigPath: () => invoke<string>("get_config_path"),
   getResolvedPath: () => invoke<string[]>("get_resolved_path"),
+
+  getCaffeinateStatus: () => invoke<boolean>("get_caffeinate_status"),
+  toggleCaffeinate: () => invoke<boolean>("toggle_caffeinate"),
+  setCaffeinate: (active: boolean) => invoke<boolean>("set_caffeinate", { active }),
+
+  getNotchInfo: () => invoke<NotchInfo>("get_notch_info"),
+  getStatusBarApps: () => invoke<StatusBarAppsResponse>("get_status_bar_apps"),
+  activateApp: (pid: number) => invoke<boolean>("activate_app", { pid }),
+  quitApp: (pid: number, force = false) => invoke<boolean>("quit_app", { pid, force }),
+  getMusicStatus: () => invoke<MusicStatus>("get_music_status"),
+  controlMusic: (action: "toggle" | "next" | "previous") =>
+    invoke<boolean>("control_music", { action }),
+  openAirDrop: () => invoke<boolean>("open_airdrop"),
+  shareAirDrop: (paths: string[]) => invoke<boolean>("share_airdrop", { paths }),
+  setNotchWindowState: (expanded: boolean) =>
+    invoke<void>("set_notch_window_state", { expanded }),
+  setNotchPinned: (pinned: boolean) =>
+    invoke<void>("set_notch_pinned", { pinned }),
+  setNotchLiveWing: (wing: number) => invoke<void>("set_notch_live_wing", { wing }),
+  /** Native app menu; resolves to the action the UI should carry out. */
+  showAppContextMenu: (pid: number, labels: string[]) =>
+    invoke<"app-menu" | "activate" | "quit" | "force-quit" | "reveal" | "none">("show_app_context_menu", { pid, labels }),
+  toggleNotchWindow: (enable: boolean) =>
+    invoke<void>("toggle_notch_window", { enable }),
+  showDevHubMainWindow: () => invoke<void>("show_devhub_main_window"),
+  getCalendarEvents: (startMs: number, days: number) =>
+    invoke<CalendarEventsResponse>("get_calendar_events", { startMs, days }),
+  getNotchQuickStats: () => invoke<NotchQuickStats>("get_notch_quick_stats"),
 };
+
+export const onNotchExpand = (handler: (expanded: boolean) => void): Promise<UnlistenFn> =>
+  listen<boolean>("devhub://notch-expand", (event) => handler(event.payload));
+
+export const onNotchMusic = (handler: (status: MusicStatus) => void): Promise<UnlistenFn> =>
+  listen<MusicStatus>("devhub://notch-music", (event) => handler(event.payload));
+
+export const onSettingsChanged = (handler: (settings: Settings) => void): Promise<UnlistenFn> =>
+  listen<Settings>("devhub://settings-changed", (event) => handler(event.payload));
 
 export const onGitHubAuth = (handler: (outcome: LoginOutcome) => void): Promise<UnlistenFn> =>
   listen<LoginOutcome>("devhub://github-auth", (event) => handler(event.payload));

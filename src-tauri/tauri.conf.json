@@ -10,8 +10,10 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "DevHub",
         "width": 1280,
         "height": 820,
@@ -19,6 +21,20 @@
         "minHeight": 600,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
+      },
+      {
+        "label": "notch",
+        "title": "DevHub Notch",
+        "url": "index.html?window=notch",
+        "width": 640,
+        "height": 240,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "resizable": false,
+        "visible": false
       }
     ],
     "security": {

@@ -25,8 +25,10 @@ import { Input } from "../components/ui/input";
 import { useDevHub } from "../hooks/useDevHub";
 import { api } from "../lib/api";
 import type { PortEntry, PortOwnership, ProcessDescription } from "../lib/types";
+import { useI18n } from "../lib/i18n";
 
 export function PortsPage() {
+  const { t } = useI18n();
   const { ports, refreshPorts, report } = useDevHub();
   const [process, setProcess] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -111,11 +113,11 @@ export function PortsPage() {
     <>
       <PageHeader
         className="ports-page-header"
-        title="Ports"
+        title={t("Ports")}
         subtitle={(
           <>
-            {displayedPorts.length} listening · <span className="text-success">{managedCount} started by DevHub</span> · {externalCount} external
-            {!showEditorHelpers && editorHelperCount > 0 ? ` · ${editorHelperCount} editor helper ports hidden` : ""}
+            {t("{count} listening", { count: displayedPorts.length })} · <span className="text-success">{t("{count} started by DevHub", { count: managedCount })}</span> · {t("{count} external", { count: externalCount })}
+            {!showEditorHelpers && editorHelperCount > 0 ? ` · ${t("{count} editor helper ports hidden", { count: editorHelperCount })}` : ""}
           </>
         )}
         actions={<div className="page-toolbar ports-toolbar">
@@ -126,10 +128,10 @@ export function PortsPage() {
           {editorHelperCount > 0 ? (
             <Button variant="outline" size="sm" onClick={() => { setShowEditorHelpers((value) => !value); setProcess(null); }}>
               {showEditorHelpers ? <EyeOff /> : <Eye />}
-              {showEditorHelpers ? "Hide helpers" : `Show helpers (${editorHelperCount})`}
+              {showEditorHelpers ? t("Hide helpers") : t("Show helpers ({count})", { count: editorHelperCount })}
             </Button>
           ) : null}
-          <Button variant="outline" size="sm" onClick={() => refreshPorts()}><RefreshCw />Refresh</Button>
+          <Button variant="outline" size="sm" onClick={() => refreshPorts()}><RefreshCw />{t("Refresh")}</Button>
         </div>}
       />
 
@@ -157,22 +159,22 @@ export function PortsPage() {
             aria-expanded={filterExpanded}
           >
             {filterExpanded ? <ChevronUp /> : <ChevronDown />}
-            <span>{filterExpanded ? "Collapse" : "Expand"}</span>
+            <span>{filterExpanded ? t("Collapse") : t("Expand")}</span>
           </Button>
         </div>
       ) : null}
 
       {displayedPorts.length === 0 ? (
         <div className="empty-state">
-          <h3>{editorHelperCount > 0 ? "Only editor helpers are listening" : "Nothing listening"}</h3>
-          <p>{editorHelperCount > 0 ? "Use Show helpers to inspect them." : "Start a development server and its TCP port will appear here."}</p>
+          <h3>{editorHelperCount > 0 ? t("Only editor helpers are listening") : t("Nothing listening")}</h3>
+          <p>{editorHelperCount > 0 ? t("Use Show helpers to inspect them.") : t("Start a development server and its TCP port will appear here.")}</p>
         </div>
       ) : visible.length === 0 ? (
-        <div className="empty-state"><h3>No matching ports</h3><p>Try a different port, process or project filter.</p></div>
+        <div className="empty-state"><h3>{t("No matching ports")}</h3><p>{t("Try a different port, process or project filter.")}</p></div>
       ) : (
         <div className="ports-panel">
           <div className="ports-row is-head">
-            <span>Port</span><span>Process</span><span>Project · command</span><span>PID</span><span>Address</span><span />
+            <span>{t("Port")}</span><span>{t("Process")}</span><span>{t("Project · command")}</span><span>PID</span><span>{t("Address")}</span><span />
           </div>
           {managed.length > 0 ? (
             <PortsGroup ownership="managed" entries={managed} onOpen={(entry) => openUrl(`http://localhost:${entry.port}`).catch(report)} onStop={stop} onStopAll={stopAllManaged} />
@@ -189,25 +191,25 @@ export function PortsPage() {
             <DialogHeader className="is-danger">
               <span className="dialog-danger-icon"><AlertTriangle /></span>
               <div>
-                <DialogTitle>End this process?</DialogTitle>
+                <DialogTitle>{t("End this process?")}</DialogTitle>
                 <DialogDescription>
                   {isEditorHelper(pendingKill.entry)
-                    ? "This is an editor helper. Ending it can interrupt code intelligence, and its parent app may restart it."
-                    : "It was not started by DevHub. Its parent application may restart it automatically."}
+                    ? t("This is an editor helper. Ending it can interrupt code intelligence, and its parent app may restart it.")
+                    : t("It was not started by DevHub. Its parent application may restart it automatically.")}
                 </DialogDescription>
               </div>
             </DialogHeader>
             <div className="dialog-body">
               <dl className="dialog-kill-facts">
-                <div><dt>Process</dt><dd>{pendingKill.description?.name ?? pendingKill.entry.processName ?? "unknown"}</dd></div>
-                <div><dt>Port · PID</dt><dd>{pendingKill.entry.port} · {pendingKill.entry.pid}</dd></div>
-                <div><dt>Address</dt><dd>{pendingKill.entry.address}</dd></div>
+                <div><dt>{t("Process")}</dt><dd>{pendingKill.description?.name ?? pendingKill.entry.processName ?? t("unknown")}</dd></div>
+                <div><dt>{t("Port · PID")}</dt><dd>{pendingKill.entry.port} · {pendingKill.entry.pid}</dd></div>
+                <div><dt>{t("Address")}</dt><dd>{pendingKill.entry.address}</dd></div>
               </dl>
               {pendingKill.description?.command ? <div className="dialog-cmdline">{pendingKill.description.command}</div> : null}
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setPendingKill(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={confirmKill}>End process</Button>
+              <Button variant="ghost" onClick={() => setPendingKill(null)}>{t("Cancel")}</Button>
+              <Button variant="destructive" onClick={confirmKill}>{t("End process")}</Button>
             </DialogFooter>
           </DialogContent>
         ) : null}
@@ -228,15 +230,16 @@ function PortsGroup({ ownership, entries, onOpen, onStop, onStopAll }: {
   onStop: (entry: PortEntry) => void;
   onStopAll?: () => void;
 }) {
+  const { t } = useI18n();
   const managed = ownership === "managed";
   return (
     <section>
       <div className={`ports-group ${ownership}`}>
         <span className="dot" />
-        <span className="label">{managed ? "Started by DevHub" : "External processes"}</span>
+        <span className="label">{managed ? t("Started by DevHub") : t("External processes")}</span>
         <span className="count">{entries.length}</span>
         <span className="end">
-          {managed ? <button className="link-button" onClick={onStopAll}>Stop all</button> : "DevHub does not manage these · Kill requires confirmation"}
+          {managed ? <button className="link-button" onClick={onStopAll}>{t("Stop all")}</button> : t("DevHub does not manage these · Kill requires confirmation")}
         </span>
       </div>
       {entries.map((entry) => (
@@ -250,9 +253,9 @@ function PortsGroup({ ownership, entries, onOpen, onStop, onStopAll }: {
           <span className="ports-cell-faint">{entry.pid ?? "—"}</span>
           <span className="ports-cell-faint" title={entry.address}>{entry.address}</span>
           <span className="ports-actions">
-            <Button variant="outline" size="xs" className="port-open-button" onClick={() => onOpen(entry)}>Open<ExternalLink /></Button>
+            <Button variant="outline" size="xs" className="port-open-button" onClick={() => onOpen(entry)}>{t("Open")}<ExternalLink /></Button>
             <Button variant={managed ? "outline" : "destructive"} size="xs" onClick={() => onStop(entry)} disabled={entry.pid === null}>
-              {managed ? "■ Stop" : "Kill"}
+              {managed ? `■ ${t("Stop")}` : t("Kill")}
             </Button>
           </span>
         </div>

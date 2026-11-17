@@ -44,8 +44,10 @@ fn install_signal_handlers(app: tauri::AppHandle) {
 
         if let Some(state) = app.try_state::<AppState>() {
             state.processes.stop_all_on_exit();
+            state.stop_caffeinate();
         }
         app.exit(0);
+
     });
 }
 
@@ -62,6 +64,9 @@ pub fn run() {
             std::fs::create_dir_all(&config_dir)?;
 
             let state = AppState::new(app.handle().clone(), &config_dir)?;
+            if state.settings().enable_notch {
+                let _ = state.notch.setup_notch_window(app.handle());
+            }
             app.manage(state);
 
             install_signal_handlers(app.handle().clone());
@@ -119,6 +124,9 @@ pub fn run() {
             commands::settings::update_settings,
             commands::settings::get_config_path,
             commands::settings::get_resolved_path,
+            commands::caffeinate::get_caffeinate_status,
+            commands::caffeinate::toggle_caffeinate,
+            commands::caffeinate::set_caffeinate,
             commands::todo::todo_board,
             commands::todo::todo_repository_issues,
             commands::todo::set_todo_repositories,
@@ -127,6 +135,22 @@ pub fn run() {
             commands::todo::set_todo_step,
             commands::todo::set_todo_completed,
             commands::todo::delete_todo,
+            commands::notch::get_notch_info,
+            commands::notch::get_status_bar_apps,
+            commands::notch::activate_app,
+            commands::notch::quit_app,
+            commands::notch::get_music_status,
+            commands::notch::control_music,
+            commands::notch::get_calendar_events,
+            commands::notch::open_airdrop,
+            commands::notch::share_airdrop,
+            commands::notch::set_notch_window_state,
+            commands::notch::set_notch_pinned,
+            commands::notch::set_notch_live_wing,
+            commands::notch::show_app_context_menu,
+            commands::notch::toggle_notch_window,
+            commands::notch::show_devhub_main_window,
+            commands::notch::get_notch_quick_stats,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DevHub")
@@ -135,6 +159,8 @@ pub fn run() {
                 && let Some(state) = app.try_state::<AppState>()
             {
                 state.processes.stop_all_on_exit();
+                state.stop_caffeinate();
             }
         });
+
 }

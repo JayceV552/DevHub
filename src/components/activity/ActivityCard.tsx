@@ -18,25 +18,26 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { ActivityItem } from "../../lib/types";
+import { translate, useI18n } from "../../lib/i18n";
 
 export function verb(item: ActivityItem): string {
-  if (item.activityType === "star") return "starred this repository";
-  if (item.activityType === "fork") return "forked this repository";
-  if (item.activityType === "commit") return "pushed a commit";
-  if (item.activityType === "release") return "published a release";
-  if (item.activityType === "publish") return "made this repository public";
-  if (item.activityType === "pullRequest") return `${item.state} a pull request`;
-  if (item.activityType === "issue") return `${item.state} an issue`;
-  return "updated a discussion";
+  if (item.activityType === "star") return translate("starred this repository");
+  if (item.activityType === "fork") return translate("forked this repository");
+  if (item.activityType === "commit") return translate("pushed a commit");
+  if (item.activityType === "release") return translate("published a release");
+  if (item.activityType === "publish") return translate("made this repository public");
+  if (item.activityType === "pullRequest") return translate("{state} a pull request", { state: translate(item.state) });
+  if (item.activityType === "issue") return translate("{state} an issue", { state: translate(item.state) });
+  return translate("updated a discussion");
 }
 
 export function relativeTime(date: Date): string {
   const seconds = Math.max(0, (Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return "now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`;
-  if (seconds < 604_800) return `${Math.floor(seconds / 86_400)}d`;
-  return `${Math.floor(seconds / 604_800)}w`;
+  if (seconds < 60) return translate("now");
+  if (seconds < 3600) return translate("{n}m", { n: Math.floor(seconds / 60) });
+  if (seconds < 86_400) return translate("{n}h", { n: Math.floor(seconds / 3600) });
+  if (seconds < 604_800) return translate("{n}d", { n: Math.floor(seconds / 86_400) });
+  return translate("{n}w", { n: Math.floor(seconds / 604_800) });
 }
 
 // Memoised: a single save toggle re-renders the whole board, and every column
@@ -48,6 +49,7 @@ export const ActivityCard = memo(function ActivityCard({ item, saved, onToggleSa
   onToggleSave: (item: ActivityItem) => void;
   onReport: (err: unknown) => void;
 }) {
+  const { t } = useI18n();
   const TypeIcon = activityIcon(item);
   const [owner, repository = item.repository] = item.repository.split("/");
   const repositoryAvatar = `https://github.com/${encodeURIComponent(owner)}.png?size=96`;
@@ -112,13 +114,13 @@ export const ActivityCard = memo(function ActivityCard({ item, saved, onToggleSa
                 event.stopPropagation();
                 onToggleSave(item);
               }}
-              aria-label={saved ? "Remove from saved" : "Save for later"}
+              aria-label={saved ? t("Remove from saved") : t("Save for later")}
               aria-pressed={saved}
             >
               <Bookmark fill={saved ? "currentColor" : "none"} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{saved ? "Remove from saved" : "Save for later"}</TooltipContent>
+          <TooltipContent>{saved ? t("Remove from saved") : t("Save for later")}</TooltipContent>
         </Tooltip>
       </div>
     </article>

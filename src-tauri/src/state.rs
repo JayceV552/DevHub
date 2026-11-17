@@ -6,8 +6,8 @@ use tauri::AppHandle;
 use crate::error::Result;
 use crate::models::Project;
 use crate::services::{
-    ActivityStore, ClientIdSource, ClipboardStore, Config, ConfigManager, DeviceFlow, GitHubClient,
-    PortManager, ProcessManager, RunRegistry, TokenStore, TrackedRun,
+    ActivityStore, CaffeinateManager, ClientIdSource, ClipboardStore, Config, ConfigManager, DeviceFlow,
+    GitHubClient, NotchManager, PortManager, ProcessManager, RunRegistry, TokenStore, TrackedRun,
 };
 
 pub struct AppState {
@@ -20,6 +20,8 @@ pub struct AppState {
     pub device_flow: Arc<DeviceFlow>,
     pub activity: ActivityStore,
     pub clipboard: Arc<ClipboardStore>,
+    pub caffeinate: Arc<CaffeinateManager>,
+    pub notch: Arc<NotchManager>,
     orphans: Mutex<Vec<TrackedRun>>,
 }
 
@@ -56,6 +58,8 @@ impl AppState {
             device_flow: Arc::new(DeviceFlow::new(reqwest::Client::new())),
             activity: ActivityStore::load(config_dir),
             clipboard,
+            caffeinate: Arc::new(CaffeinateManager::new()),
+            notch: Arc::new(NotchManager::new()),
             orphans: Mutex::new(orphans),
         })
     }
@@ -121,4 +125,9 @@ impl AppState {
         *guard = draft;
         Ok(value)
     }
+
+    pub fn stop_caffeinate(&self) {
+        let _ = self.caffeinate.stop();
+    }
 }
+
