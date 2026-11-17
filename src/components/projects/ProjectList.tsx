@@ -156,7 +156,7 @@ function GroupHead({ group, expanded, canCollapse, runningCount, onToggle }: {
         <Folder className="project-group-icon" aria-hidden="true" />
         <span className="project-group-name">{name ?? t("Ungrouped")}</span>
         <span className="project-group-meta">
-          {t("{projects} projects", { projects: projects.length })}
+          {t(projects.length === 1 ? "1 project" : "{projects} projects", { projects: projects.length })}
           {runningCount > 0 ? <span className="text-success"> · {t("{count} running", { count: runningCount })}</span> : null}
         </span>
       </button>

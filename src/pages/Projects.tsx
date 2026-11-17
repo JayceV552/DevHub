@@ -12,7 +12,7 @@ import { Input } from "../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useDevHub } from "../hooks/useDevHub";
 import type { ProjectView, Run } from "../lib/types";
-import { useI18n } from "../lib/i18n";
+import { useI18n, type Translate } from "../lib/i18n";
 
 type StatusFilter = "all" | "running" | "attention";
 
@@ -105,8 +105,8 @@ export function ProjectsPage() {
         className="projects-header"
         title={t("Projects")}
         subtitle={workspaceCount > 0
-          ? t("{projects} projects across {workspaces} workspaces", { projects: projects.length, workspaces: workspaceCount })
-          : t("{projects} projects", { projects: projects.length })}
+          ? `${projectCount(t, projects.length)} · ${t(workspaceCount === 1 ? "1 workspace" : "{count} workspaces", { count: workspaceCount })}`
+          : projectCount(t, projects.length)}
         actions={<div className="page-toolbar projects-toolbar">
           <Tabs value={filter} onValueChange={(value) => setFilter(value as StatusFilter)}>
             <TabsList className="projects-filter" aria-label={t("Filter projects by status")}>
@@ -177,3 +177,6 @@ export function ProjectsPage() {
   );
 }
 
+function projectCount(t: Translate, count: number): string {
+  return t(count === 1 ? "1 project" : "{projects} projects", { projects: count });
+}
