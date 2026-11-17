@@ -74,7 +74,7 @@ Open a repository folder to browse its latest issues without leaving the board.
 
 ### Projects
 
-Run project commands and follow their output.
+Filter projects by status, start or stop a whole workspace, and open a project to run its scripts and follow live output.
 
 ![DevHub project manager and command output](public/devhub-projects.jpg)
 
