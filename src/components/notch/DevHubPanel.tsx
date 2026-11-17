@@ -34,6 +34,11 @@ export function DevHubPanel({ stats, t, onChanged }: DevHubPanelProps) {
         <span className="notch-switch" aria-hidden="true">
           <span />
         </span>
+        {awake ? (
+          <span className="notch-stat-value notch-stat-emoji" aria-hidden="true">
+            ☕️
+          </span>
+        ) : null}
         <span className="notch-stat-label">
           {t.keepAwake} · {awake ? t.on : t.off}
         </span>
