@@ -34,8 +34,11 @@ interface DevHubValue {
   setActiveTab: (runId: string | null) => void;
   runFor: (projectId: string, commandId: string) => Run | undefined;
   runsForProject: (projectId: string) => Run[];
+  caffeinated: boolean;
+  toggleCaffeinate: () => Promise<void>;
   report: (err: unknown) => void;
 }
+
 
 const DevHubContext = createContext<DevHubValue | null>(null);
 
@@ -50,13 +53,36 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [focusedProject, setFocusedProject] = useState<string | null>(null);
+  const [caffeinated, setCaffeinated] = useState(false);
   const runsRef = useRef<Run[]>([]);
 
   useEffect(() => {
     runsRef.current = runs;
   }, [runs]);
 
+  useEffect(() => {
+    let active = true;
+    api.getCaffeinateStatus()
+      .then((status) => {
+        if (active) setCaffeinated(status);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const report = useCallback((err: unknown) => setError(errorMessage(err)), []);
+
+  const toggleCaffeinate = useCallback(async () => {
+    try {
+      const next = await api.toggleCaffeinate();
+      setCaffeinated(next);
+    } catch (err) {
+      report(err);
+    }
+  }, [report]);
+
 
   const refreshProjects = useCallback(async () => {
     try {
@@ -281,14 +307,17 @@ export function DevHubProvider({ children }: { children: ReactNode }) {
       setActiveTab,
       runFor,
       runsForProject,
+      caffeinated,
+      toggleCaffeinate,
       report,
     }),
     [
       projects, runs, ports, loading, error, openTabs, activeTab, focusedProject,
       refreshProjects, refreshPorts, start, stop, restart, openTab, closeTab,
-      runFor, runsForProject, report,
+      runFor, runsForProject, caffeinated, toggleCaffeinate, report,
     ],
   );
+
 
   return <DevHubContext.Provider value={value}>{children}</DevHubContext.Provider>;
 }

@@ -1,0 +1,688 @@
+/* ==========================================================================
+   Notch overlay window
+   The island is one fixed-size black box whose visible shape is animated
+   with clip-path. Nothing re-lays out during the morph: only paint, and the
+   content layer animates with opacity/transform (compositor-only).
+   ========================================================================== */
+
+html.is-notch-window,
+html.is-notch-window body,
+html.is-notch-window #root {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.notch-root {
+  /* Box is larger than the card so the spring overshoot has room. */
+  --box-w: 620px;
+  --box-h: 216px;
+  --ear: 10px;
+  --notch-accent: 255, 255, 255;
+  --spring: cubic-bezier(0.2, 1.25, 0.35, 1);
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 0.6, 0.2);
+
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--box-w);
+  height: var(--box-h);
+  margin-left: calc(var(--box-w) / -2);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: none;
+}
+
+.notch-island {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  clip-path: inset(
+    0 calc((var(--box-w) - var(--nw)) / 2) calc(var(--box-h) - var(--nh))
+      calc((var(--box-w) - var(--nw)) / 2) round 0 0 var(--nr) var(--nr)
+  );
+  transition: clip-path 0.34s var(--ease-out);
+}
+
+.notch-root.is-expanded .notch-island {
+  pointer-events: auto;
+  transition: clip-path 0.52s var(--spring);
+}
+
+/* Concave fillets where the island meets the top edge of the screen. */
+.notch-ear {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--ear);
+  height: var(--ear);
+  opacity: 0;
+  transition: transform 0.34s var(--ease-out), opacity 0.2s ease;
+}
+.notch-ear.is-left {
+  background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.5px), #000 var(--ear));
+  transform: translateX(calc(var(--nw) / -2 - var(--ear) + 0.5px));
+}
+.notch-ear.is-right {
+  background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.5px), #000 var(--ear));
+  transform: translateX(calc(var(--nw) / 2 - 0.5px));
+}
+.notch-root.is-expanded .notch-ear,
+.notch-root.is-live .notch-ear {
+  opacity: 1;
+}
+.notch-root.is-expanded .notch-ear {
+  transition: transform 0.52s var(--spring), opacity 0.12s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Collapsed live activity (artwork | notch | equalizer)
+   -------------------------------------------------------------------------- */
+
+.notch-live {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--nw);
+  height: var(--nh);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 calc((var(--wing) - 22px) / 2 + 2px);
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.notch-root.is-live .notch-live {
+  opacity: 1;
+  transition: opacity 0.3s ease 0.12s;
+}
+
+.notch-live-art {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1c1c1e;
+}
+.notch-live-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notch-eq {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 22px;
+  height: 14px;
+  justify-content: center;
+}
+.notch-eq span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: rgb(var(--notch-accent));
+  transform: scaleY(0.25);
+  transform-origin: center;
+  transition: background-color 0.6s ease;
+}
+/* Only animate when visible and playing: no idle compositor work. */
+.notch-root.is-live .notch-eq.is-playing span {
+  animation: notch-eq 0.9s ease-in-out infinite alternate;
+}
+.notch-eq span:nth-child(2) { animation-duration: 0.7s !important; animation-delay: -0.3s !important; }
+.notch-eq span:nth-child(3) { animation-duration: 1.05s !important; animation-delay: -0.5s !important; }
+.notch-eq span:nth-child(4) { animation-duration: 0.8s !important; animation-delay: -0.15s !important; }
+
+@keyframes notch-eq {
+  0% { transform: scaleY(0.25); }
+  50% { transform: scaleY(0.9); }
+  100% { transform: scaleY(0.45); }
+}
+
+/* --------------------------------------------------------------------------
+   Expanded card
+   -------------------------------------------------------------------------- */
+
+.notch-card {
+  position: absolute;
+  top: 0;
+  left: calc((var(--box-w) - 580px) / 2);
+  width: 580px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0 18px 14px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px) scale(0.94);
+  transform-origin: 50% 0;
+  transition: opacity 0.12s ease, transform 0.2s var(--ease-in), visibility 0s linear 0.2s;
+}
+.notch-root.is-expanded .notch-card {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.26s ease 0.07s, transform 0.5s var(--spring) 0.03s, visibility 0s;
+}
+
+.notch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.notch-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.notch-tabs button,
+.notch-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.notch-tabs button svg,
+.notch-icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.notch-tabs button:hover,
+.notch-icon-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+.notch-tabs button.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.notch-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  animation: notch-panel-in 0.28s var(--ease-out);
+}
+@keyframes notch-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.notch-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Home: music + calendar
+   -------------------------------------------------------------------------- */
+
+.notch-home {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 208px;
+  gap: 22px;
+}
+
+.notch-music {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.notch-artwork {
+  position: relative;
+  flex-shrink: 0;
+  width: 112px;
+  height: 112px;
+  border-radius: 16px;
+  transition: transform 0.45s var(--spring), box-shadow 0.6s ease;
+  transform: scale(0.94);
+  box-shadow: 0 6px 18px -8px rgba(var(--notch-accent), 0.25);
+}
+.notch-artwork.is-playing {
+  transform: none;
+  box-shadow: 0 10px 30px -10px rgba(var(--notch-accent), 0.55);
+}
+.notch-artwork > img:first-child,
+.notch-artwork-empty {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.notch-artwork-empty {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #2c2c2e, #1c1c1e);
+  color: rgba(255, 255, 255, 0.35);
+}
+.notch-artwork-empty svg {
+  width: 34px;
+  height: 34px;
+}
+.notch-artwork-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.notch-music-body {
+  flex: 1;
+  min-width: 0;
+  height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.notch-music-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notch-music-artist {
+  margin-top: 2px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notch-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.notch-progress-fill {
+  height: 100%;
+  background: #fff;
+  transform-origin: left center;
+  /* Matches the 500ms tick so motion reads as continuous. */
+  transition: transform 0.5s linear;
+}
+.notch-progress-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.notch-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.notch-controls button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 26px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: transform 0.25s var(--spring), color 0.15s ease, opacity 0.15s ease;
+}
+.notch-controls button svg {
+  width: 18px;
+  height: 18px;
+}
+.notch-controls button.is-primary svg {
+  width: 24px;
+  height: 24px;
+}
+.notch-controls button:hover:not(:disabled) {
+  color: #fff;
+}
+.notch-controls button:active:not(:disabled) {
+  transform: scale(0.82);
+}
+.notch-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Calendar */
+.notch-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+  min-width: 0;
+}
+.notch-cal-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.notch-cal-month {
+  font-size: 17px;
+  font-weight: 700;
+}
+.notch-cal-year {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.notch-cal-days {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+}
+.notch-cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0 3px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.notch-cal-day:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.notch-cal-day.is-selected {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.notch-cal-wd {
+  font-size: 10px;
+  font-weight: 500;
+}
+.notch-cal-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.notch-cal-day.is-today .notch-cal-num {
+  background: #0a84ff;
+  color: #fff;
+}
+
+.notch-cal-lunar {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+.notch-cal-dot {
+  width: 4px;
+  height: 4px;
+  margin-top: -1px;
+  border-radius: 50%;
+  background: transparent;
+}
+.notch-cal-dot.has-events {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.notch-cal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+}
+.notch-cal-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  animation: notch-panel-in 0.25s var(--ease-out);
+}
+.notch-cal-bar {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.notch-cal-event-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notch-cal-event-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.notch-cal-empty,
+.notch-cal-more {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Apps
+   -------------------------------------------------------------------------- */
+
+.notch-apps {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2px 4px 0 0;
+}
+.notch-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 4px;
+}
+.notch-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 2px 5px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.3s var(--spring);
+}
+.notch-app:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.notch-app.is-flash {
+  transform: scale(0.9);
+}
+.notch-app img,
+.notch-app-fallback {
+  width: 32px;
+  height: 32px;
+}
+.notch-app-fallback {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+.notch-app-name {
+  max-width: 62px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notch-menu {
+  position: absolute;
+  z-index: 10;
+  width: 150px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(40, 40, 42, 0.98);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  animation: notch-menu-in 0.14s var(--ease-out);
+  transform-origin: top left;
+}
+@keyframes notch-menu-in {
+  from { opacity: 0; transform: scale(0.95); }
+}
+.notch-menu-title {
+  padding: 4px 8px 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notch-menu button {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  cursor: pointer;
+}
+.notch-menu button:hover {
+  background: #0a84ff;
+  color: #fff;
+}
+.notch-menu button.is-danger:hover {
+  background: #ff453a;
+}
+
+/* --------------------------------------------------------------------------
+   DevHub overview
+   -------------------------------------------------------------------------- */
+
+.notch-stats {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.notch-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.notch-stat:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.notch-stat-value {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.notch-stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.notch-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  margin-bottom: auto;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color 0.2s ease;
+}
+.notch-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s var(--spring);
+}
+.notch-stat.is-on .notch-switch {
+  background: #30d158;
+}
+.notch-stat.is-on .notch-switch span {
+  transform: translateX(16px);
+}
+
+/* --------------------------------------------------------------------------
+   Misc
+   -------------------------------------------------------------------------- */
+
+.notch-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+.notch-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+.notch-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notch-root * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
