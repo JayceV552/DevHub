@@ -145,6 +145,9 @@ export const api = {
   setNotchPinned: (pinned: boolean) =>
     invoke<void>("set_notch_pinned", { pinned }),
   setNotchLiveWing: (wing: number) => invoke<void>("set_notch_live_wing", { wing }),
+  /** Native app menu; resolves to the action the UI should carry out. */
+  showAppContextMenu: (pid: number, labels: string[]) =>
+    invoke<"app-menu" | "activate" | "quit" | "force-quit" | "reveal" | "none">("show_app_context_menu", { pid, labels }),
   toggleNotchWindow: (enable: boolean) =>
     invoke<void>("toggle_notch_window", { enable }),
   showDevHubMainWindow: () => invoke<void>("show_devhub_main_window"),

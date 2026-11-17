@@ -522,3 +522,116 @@ void set_notch_live_wing(double wing) {
         updateGeometry(g_lastScreen ?: [NSScreen mainScreen]);
     });
 }
+
+// ---------------------------------------------------------------------------
+// App context menu (right-click on an app in the notch's Apps tab)
+//
+// First choice is the app's own menu: its menu bar extra is pressed through
+// Accessibility, exactly as if the user had clicked the icon in the menu bar
+// (this works even when the icon is hidden behind the notch). If that is not
+// possible — no Accessibility permission, or the app has no menu bar extra —
+// a native NSMenu with DevHub's own actions pops up at the cursor. Either way
+// the menu is a real system menu, so it is never clipped by the popup.
+
+#import <ApplicationServices/ApplicationServices.h>
+
+@interface DevHubMenuTarget : NSObject
+@property (nonatomic, assign) NSInteger picked;
+- (void)pick:(NSMenuItem *)sender;
+@end
+
+@implementation DevHubMenuTarget
+- (void)pick:(NSMenuItem *)sender {
+    self.picked = sender.tag;
+}
+@end
+
+static BOOL pressStatusItemOfApp(pid_t pid) {
+    if (!AXIsProcessTrusted()) return NO;
+    AXUIElementRef app = AXUIElementCreateApplication(pid);
+    if (!app) return NO;
+    AXUIElementSetMessagingTimeout(app, 1.0);
+
+    BOOL opened = NO;
+    CFTypeRef extras = NULL;
+    if (AXUIElementCopyAttributeValue(app, CFSTR("AXExtrasMenuBar"), &extras) == kAXErrorSuccess && extras) {
+        CFTypeRef children = NULL;
+        if (AXUIElementCopyAttributeValue((AXUIElementRef)extras, kAXChildrenAttribute, &children) == kAXErrorSuccess
+            && children && CFGetTypeID(children) == CFArrayGetTypeID() && CFArrayGetCount((CFArrayRef)children) > 0) {
+            AXUIElementRef item = (AXUIElementRef)CFArrayGetValueAtIndex((CFArrayRef)children, 0);
+            // Prefer the explicit "show menu" action; most status items only expose AXPress.
+            CFArrayRef actions = NULL;
+            BOOL hasShowMenu = NO;
+            if (AXUIElementCopyActionNames(item, &actions) == kAXErrorSuccess && actions) {
+                hasShowMenu = CFArrayContainsValue(actions, CFRangeMake(0, CFArrayGetCount(actions)), kAXShowMenuAction);
+                CFRelease(actions);
+            }
+            opened = AXUIElementPerformAction(item, hasShowMenu ? kAXShowMenuAction : kAXPressAction) == kAXErrorSuccess;
+        }
+        if (children) CFRelease(children);
+        CFRelease(extras);
+    }
+    CFRelease(app);
+    return opened;
+}
+
+/// Must run on the main thread. `labels` is "title\nbringToFront\nshowInFinder\nquit\nforceQuit".
+/// Returns "app-menu" when the app's own menu was opened, otherwise the action picked from the
+/// fallback menu: "activate", "quit", "force-quit", "reveal" (already performed) or "none".
+const char *show_app_context_menu(int pid, const char *labels) {
+    if (pressStatusItemOfApp((pid_t)pid)) {
+        // Get the popup out of the way so the app's menu is fully visible.
+        collapseNotchNative();
+        return "app-menu";
+    }
+    // Ask once for Accessibility so the app's own menu can be used next time.
+    static BOOL askedForAccess = NO;
+    if (!askedForAccess && !AXIsProcessTrusted()) {
+        askedForAccess = YES;
+        NSDictionary *opts = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
+        AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)opts);
+    }
+
+    NSArray<NSString *> *l = [[NSString stringWithUTF8String:labels ?: ""] componentsSeparatedByString:@"\n"];
+    if (l.count < 5) return "none";
+
+    DevHubMenuTarget *target = [DevHubMenuTarget new];
+    target.picked = 0;
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:l[0]];
+    menu.autoenablesItems = NO;
+
+    NSMenuItem *header = [[NSMenuItem alloc] initWithTitle:l[0] action:nil keyEquivalent:@""];
+    header.enabled = NO;
+    [menu addItem:header];
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSArray *entries = @[@[l[1], @1], @[l[2], @2], @[@"-", @0], @[l[3], @3], @[l[4], @4]];
+    for (NSArray *entry in entries) {
+        if ([entry[0] isEqualToString:@"-"]) {
+            [menu addItem:[NSMenuItem separatorItem]];
+            continue;
+        }
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:entry[0] action:@selector(pick:) keyEquivalent:@""];
+        item.target = target;
+        item.tag = [entry[1] integerValue];
+        [menu addItem:item];
+    }
+
+    // Keep the popup open while the menu tracks (it runs a modal loop).
+    BOOL wasPinned = g_isPinned;
+    g_isPinned = YES;
+    [menu popUpMenuPositioningItem:nil atLocation:[NSEvent mouseLocation] inView:nil];
+    g_isPinned = wasPinned;
+
+    switch (target.picked) {
+        case 1: return "activate";
+        case 2: {
+            NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:(pid_t)pid];
+            if (app.bundleURL) [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[app.bundleURL]];
+            return "reveal";
+        }
+        case 3: return "quit";
+        case 4: return "force-quit";
+        default: return "none";
+    }
+}

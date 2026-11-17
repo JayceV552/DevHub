@@ -16,6 +16,7 @@ fn main() {
             .file("native/notch_window.m")
             .flag("-fobjc-arc")
             .compile("notch_window");
+        println!("cargo:rustc-link-lib=framework=ApplicationServices");
 
         let manifest_dir = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
         let swift_dir = manifest_dir.join("native").join("notch-helper");

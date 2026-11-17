@@ -23,6 +23,7 @@ export interface NotchDictionary {
   moreEvents: (n: number) => string;
   noApps: string;
   bringToFront: string;
+  showInFinder: string;
   quitApp: string;
   forceQuit: string;
 
@@ -56,6 +57,7 @@ export const NOTCH_I18N: Record<NotchLanguage, NotchDictionary> = {
     moreEvents: (n) => `还有 ${n} 项`,
     noApps: "暂无状态栏应用",
     bringToFront: "激活窗口",
+    showInFinder: "在访达中显示",
     quitApp: "退出",
     forceQuit: "强制退出",
 
@@ -87,6 +89,7 @@ export const NOTCH_I18N: Record<NotchLanguage, NotchDictionary> = {
     moreEvents: (n) => `${n} more`,
     noApps: "No menu bar apps",
     bringToFront: "Bring to front",
+    showInFinder: "Show in Finder",
     quitApp: "Quit",
     forceQuit: "Force quit",
 

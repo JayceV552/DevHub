@@ -560,48 +560,6 @@ html.is-notch-window #root {
   text-overflow: ellipsis;
 }
 
-.notch-menu {
-  position: absolute;
-  z-index: 10;
-  width: 150px;
-  padding: 4px;
-  border-radius: 10px;
-  background: rgba(40, 40, 42, 0.98);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
-  font-size: 12px;
-  animation: notch-menu-in 0.14s var(--ease-out);
-  transform-origin: top left;
-}
-@keyframes notch-menu-in {
-  from { opacity: 0; transform: scale(0.95); }
-}
-.notch-menu-title {
-  padding: 4px 8px 5px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.notch-menu button {
-  display: block;
-  width: 100%;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: left;
-  cursor: pointer;
-}
-.notch-menu button:hover {
-  background: #0a84ff;
-  color: #fff;
-}
-.notch-menu button.is-danger:hover {
-  background: #ff453a;
-}
-
 /* --------------------------------------------------------------------------
    DevHub overview
    -------------------------------------------------------------------------- */

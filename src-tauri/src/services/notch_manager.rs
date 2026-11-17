@@ -16,6 +16,10 @@ unsafe extern "C" {
     fn register_notch_expand_callback(callback: unsafe extern "C" fn(bool));
     fn set_notch_pinned_native(pinned: bool);
     fn set_notch_live_wing(wing: f64);
+    fn show_app_context_menu(
+        pid: i32,
+        labels: *const std::os::raw::c_char,
+    ) -> *const std::os::raw::c_char;
     fn control_music_native(action: *const std::os::raw::c_char);
 }
 
@@ -300,6 +304,33 @@ impl NotchManager {
             self.setup_notch_window(app)?;
         }
         Ok(())
+    }
+
+    /// Opens the app's own menu bar menu, or DevHub's native fallback menu.
+    /// Blocks until the fallback menu closes, so it is dispatched to the main
+    /// thread and awaited. Returns the action the frontend should carry out.
+    pub async fn show_app_context_menu(&self, app: &AppHandle, pid: i32, labels: String) -> String {
+        #[cfg(target_os = "macos")]
+        {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            let labels = std::ffi::CString::new(labels.replace('\0', "")).unwrap_or_default();
+            let dispatched = app.run_on_main_thread(move || {
+                let action = unsafe {
+                    let ptr = show_app_context_menu(pid, labels.as_ptr());
+                    std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                };
+                let _ = tx.send(action);
+            });
+            if dispatched.is_err() {
+                return "none".into();
+            }
+            rx.await.unwrap_or_else(|_| "none".into())
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (app, pid, labels);
+            "none".into()
+        }
     }
 
     pub fn set_notch_pinned(&self, _app: &AppHandle, pinned: bool) -> Result<()> {

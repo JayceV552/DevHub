@@ -147,6 +147,7 @@ pub fn run() {
             commands::notch::set_notch_window_state,
             commands::notch::set_notch_pinned,
             commands::notch::set_notch_live_wing,
+            commands::notch::show_app_context_menu,
             commands::notch::toggle_notch_window,
             commands::notch::show_devhub_main_window,
             commands::notch::get_notch_quick_stats,

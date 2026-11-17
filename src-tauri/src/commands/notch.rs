@@ -98,6 +98,16 @@ pub fn set_notch_pinned(
 }
 
 #[tauri::command]
+pub async fn show_app_context_menu(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pid: i32,
+    labels: Vec<String>,
+) -> Result<String> {
+    Ok(state.notch.show_app_context_menu(&app, pid, labels.join("\n")).await)
+}
+
+#[tauri::command]
 pub fn set_notch_live_wing(state: State<'_, AppState>, wing: f64) {
     state.notch.set_live_wing(wing);
 }
