@@ -48,11 +48,13 @@ export function NotchOverlay() {
     api.setNotchLiveWing(music?.isPlaying ? wing : 0).catch(() => {});
   }, [music?.isPlaying, wing]);
 
+  // Collapsed corners follow the hardware notch, with or without wings.
+  const nativeRadius = notch.height / 3;
   const shape = expanded
     ? { w: CARD.width, h: CARD.height, r: CARD.radius }
     : live
-      ? { w: notch.width + wing * 2, h: notch.height, r: notch.height / 2.4 }
-      : { w: notch.width, h: notch.height, r: notch.height / 3 };
+      ? { w: notch.width + wing * 2, h: notch.height, r: nativeRadius }
+      : { w: notch.width, h: notch.height, r: nativeRadius };
 
   const style = {
     "--nw": `${shape.w}px`,

@@ -54,30 +54,34 @@ html.is-notch-window #root {
   transition: clip-path 0.52s var(--spring);
 }
 
-/* Concave fillets where the island meets the top edge of the screen. */
+/* Concave fillets where the island meets the top edge of the screen.
+   They move with `left`, not `transform`: WebKit runs transform transitions
+   on the compositor but clip-path ones on the main thread, so a transformed
+   ear drifts away from the island's edge whenever the main thread is busy
+   (e.g. while the card renders). Animating both on the main thread keeps
+   them in lockstep; the ears are tiny, so the layout cost is nil. */
 .notch-ear {
   position: absolute;
   top: 0;
-  left: 50%;
   width: var(--ear);
   height: var(--ear);
   opacity: 0;
-  transition: transform 0.34s var(--ease-out), opacity 0.2s ease;
+  transition: left 0.34s var(--ease-out), opacity 0.2s ease;
 }
 .notch-ear.is-left {
   background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.5px), #000 var(--ear));
-  transform: translateX(calc(var(--nw) / -2 - var(--ear) + 0.5px));
+  left: calc(50% - var(--nw) / 2 - var(--ear) + 0.5px);
 }
 .notch-ear.is-right {
   background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.5px), #000 var(--ear));
-  transform: translateX(calc(var(--nw) / 2 - 0.5px));
+  left: calc(50% + var(--nw) / 2 - 0.5px);
 }
 .notch-root.is-expanded .notch-ear,
 .notch-root.is-live .notch-ear {
   opacity: 1;
 }
 .notch-root.is-expanded .notch-ear {
-  transition: transform 0.52s var(--spring), opacity 0.12s ease;
+  transition: left 0.52s var(--spring), opacity 0.12s ease;
 }
 
 /* --------------------------------------------------------------------------
