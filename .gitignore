@@ -11,3 +11,6 @@ src-tauri/gen/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Built by src-tauri/build.rs (swiftc) on macOS
+src-tauri/native/devhub-notch-helper

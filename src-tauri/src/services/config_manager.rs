@@ -36,6 +36,8 @@ pub struct Settings {
     pub clipboard_storage_cap_mb: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub github_client_id: Option<String>,
+    pub enable_notch: bool,
+    pub language: String,
 }
 
 impl Default for Settings {
@@ -47,6 +49,8 @@ impl Default for Settings {
             hide_system_ports: true,
             clipboard_storage_cap_mb: 256,
             github_client_id: None,
+            enable_notch: cfg!(target_os = "macos"),
+            language: "zh".to_string(),
         }
     }
 }

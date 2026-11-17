@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "notch",
+  "description": "The notch overlay only invokes DevHub commands and listens to events (expand, music, settings).",
+  "windows": ["notch"],
+  "permissions": ["core:default"]
+}
