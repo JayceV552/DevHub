@@ -1,6 +1,6 @@
 [package]
 name = "devhub"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local development workspace + GitHub activity hub"
 authors = []
 edition = "2024"
